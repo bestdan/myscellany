@@ -17,13 +17,14 @@ library(dplyr)
 library(magrittr)
 library(reshape2)
 source("distribution_plots_of_returns.R")
+ptiles <- c(0.2, 0.5, 0.8)
 ```
 
 ## Risk and return
 
 The below is a fresher take on Andy Rachleffs [post](http://seekingalpha.com/article/4056039-risk-simple-appears?page=2) about risk and return. While the general idea was good, by making most of the mass appear above zero for even the high-risk portfolio, he was a bit misleading. It _still_ looked like the higest risk portfolio was best - the potential downside of the high risk portfolio wasn't much more than the low risk portfolio, but the upside was substantially more! 
 
-Of course, that's not really true. The fact is that, *_in the short run*_ risk dominates the potential outcomes. 
+Of course, that's not really true. The fact is that, *_in the short run_* risk dominates the potential outcomes. 
 The graphs below are more accurate about the relationship between risk and return over a one year investment horizon. 
 
 ```{r}
@@ -78,21 +79,22 @@ Let's start with the 50% stock portfolio, and look at the _cumulative_ return di
 
 ```{r}
 
-medium_risk_results<- cumulative_results(0.5)
+medium_risk_results <- cumulative_results(0.5, ptiles = ptiles)
+medium_risk_densities <- medium_risk_results$cumul_densities
 
-final_results <- data.frame(loc=NA, dens=NA, year=NA)
-for(obj in 1:length(cumul_densities)) {
-  temp <- cumul_densities[[obj]]
+medium_risk_df <- data.frame(loc=NA, dens=NA, year=NA)
+for(obj in 1:length(medium_risk_densities)) {
+  temp <- medium_risk_densities[[obj]]
   head(temp)
   temp$year <- obj
-  final_results <- rbind(final_results, temp)
+  medium_risk_df <- rbind(medium_risk_df, temp)
 }
-final_results_clean <- final_results[!is.na(final_results$year),]
+medium_risk_final_results_clean <- medium_risk_df[!is.na(medium_risk_df$year),]
 
 xfactor <- 4
-final_results_clean$dens_adj <- final_results_clean$dens + (xfactor * final_results_clean$year)
+medium_risk_final_results_clean$dens_adj <- medium_risk_final_results_clean$dens + (xfactor * medium_risk_final_results_clean$year)
 
-cumul_quantiles_df <- data.frame(t(cumul_quantiles))
+cumul_quantiles_df <- data.frame(t(medium_risk_results$cumul_quantiles))
 ptile_names <- c("lower", "median", "higher")
 names(cumul_quantiles_df) <- ptile_names
 cumul_quantiles_df$year <- seq(1:10)
@@ -101,9 +103,9 @@ cumul_quantiles_df_long$year_adj <- cumul_quantiles_df_long$year * xfactor
 ```
 
 ```{r}
-ggplot(final_results_clean, aes(dens_adj, loc, group=year)) + 
+ggplot(medium_risk_final_results_clean, aes(dens_adj, loc, group=year)) + 
   geom_polygon(fill= adjustcolor("green", alpha.f = 0.5)) +
-  scale_x_continuous(breaks = unique(final_results_clean$year)*xfactor, labels = unique(final_results_clean$year)) + 
+  scale_x_continuous(breaks = unique(medium_risk_final_results_clean$year)*xfactor, labels = unique(medium_risk_final_results_clean$year)) + 
   scale_y_continuous(breaks = seq(-0.4, 1.2, 0.2), label=percent) +
   ylab('Expected Return') + xlab("Years invested") + 
   geom_point(data = cumul_quantiles_df_long, aes(year_adj, value, group=variable), color="dark green") +
@@ -115,37 +117,66 @@ ggplot(final_results_clean, aes(dens_adj, loc, group=year)) +
 ### How much risk you're taking depends on how long you have to invest for
 
 ```{r}
-low_risk_results<- cumulative_results(0.2)
-high_risk_results<- cumulative_results(0.9)
+# Let's compare results of the different portfolios, specifically at the 10 year horizon. 
+low_risk_results  <- cumulative_results(0.2, ptiles = ptiles)
+high_risk_results <- cumulative_results(0.9, ptiles = ptiles)
 
-final_results <- data.frame(loc=NA, dens=NA, year=NA)
-for(obj in 1:length(cumul_densities)) {
-  temp <- cumul_densities[[obj]]
-  head(temp)
-  temp$year <- obj
-  final_results <- rbind(final_results, temp)
+getYearResults <- function(results, year){
+  list(cumul_densities = results$cumul_densities[year][[1]], 
+      cumul_quantiles = results$cumul_quantiles[,year])
 }
 
-final_results_clean <- final_results[!is.na(final_results$year),]
+focus_year <- 5
 
-xfactor <- 4
-final_results_clean$dens_adj <- final_results_clean$dens + (xfactor * final_results_clean$year)
+low_df <- getYearResults(low_risk_results,focus_year)$cumul_densities
+low_df$risk <- 0.2
 
-cumul_quantiles_df <- data.frame(t(cumul_quantiles))
+med_df <- getYearResults(medium_risk_results,focus_year)$cumul_densities
+med_df$risk <- 0.5
+
+high_df<- getYearResults(high_risk_results,focus_year)$cumul_densities
+high_df$risk <- 0.9
+
+all_df <- rbind(low_df, med_df, high_df)
+
+xfactor <- 5
+all_df$adj <- sapply(all_df$risk, function(x){
+                              switch(as.character(x), 
+                                   "0.2" = 0, 
+                                   "0.5" = xfactor,
+                                   "0.9" = xfactor * 2)
+})
+                     
+all_df$dens_adj <- all_df$dens + all_df$adj
+
+cumul_quantiles_df <- data.frame()
+for(obj in c("low_risk_results", "medium_risk_results", "high_risk_results")){
+   temp <- as.data.frame(t(getYearResults(get(obj), focus_year)$cumul_quantiles))
+   names(temp) <- paste0("p",ptiles)
+   temp$risk <- obj
+   cumul_quantiles_df <- rbind(cumul_quantiles_df,temp)
+}
+
 ptile_names <- c("lower", "median", "higher")
-names(cumul_quantiles_df) <- ptile_names
-cumul_quantiles_df$year <- seq(1:10)
-cumul_quantiles_df_long <- melt(cumul_quantiles_df, measure.vars = ptile_names)
-cumul_quantiles_df_long$year_adj <- cumul_quantiles_df_long$year * xfactor
+cumul_quantiles_df$risk <- c(0.2, 0.5, 0.9)
+cumul_quantiles_df$adj <- sapply(cumul_quantiles_df$risk, function(x){
+                              switch(as.character(x), 
+                                   "0.2" = 0, 
+                                   "0.5" = xfactor,
+                                   "0.9" = xfactor * 2)
+})
+
+cumul_quantiles_df_long <- melt(cumul_quantiles_df, measure.vars = 1:3)
+#cumul_quantiles_df_long$risk_adj <- cumul_quantiles_df_long$risk +
 ```
 
 ```{r}
-ggplot(final_results_clean, aes(dens_adj, loc, group=year)) + 
+ggplot(all_df, aes(dens_adj, loc, group=risk)) + 
   geom_polygon(fill= adjustcolor("green", alpha.f = 0.5)) +
-  scale_x_continuous(breaks = unique(final_results_clean$year)*xfactor, labels = unique(final_results_clean$year)) + 
+  scale_x_continuous(breaks = unique(all_df$adj), labels = percent(unique(all_df$risk))) + 
   scale_y_continuous(breaks = seq(-0.4, 1.2, 0.2), label=percent) +
-  ylab('Expected Return') + xlab("Years invested") + 
-  geom_point(data = cumul_quantiles_df_long, aes(year_adj, value, group=variable), color="dark green") +
+  ylab('Expected Cumulative Return') + xlab("Risk Level") + ggtitle(paste0("Expected final return distributions\nover a ", focus_year, " holding period for different risk levels")) + 
+  geom_point(data = cumul_quantiles_df_long, aes(adj, value, group=variable), color="dark green") +
   geom_hline(yintercept = 0, color = "dark grey") +
   theme_minimal() + theme(axis.text.y = element_text(colour = "grey")) + 
   coord_cartesian(ylim = c(-0.4, 1.2)) 

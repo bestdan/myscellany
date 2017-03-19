@@ -13,7 +13,7 @@ cumulative_results <- function(risk_level, ptiles = c(0.20, 0.5, 0.80) ){
                dens =z$y)
   })
   
-  cumul_quantiles <-  apply(cumul_densities, 1, function(x){
+  cumul_quantiles <-  apply(returns_cumul, 1, function(x){
     quantile(x, probs = ptiles)
   }) 
   
