@@ -1,0 +1,152 @@
+---
+title: "Distribution of outcomes over time"
+author: "Daniel P. Egan"
+date: "3/19/2017"
+output: 
+html_document: 
+theme: cosmo
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, warning = F, message = F)
+library(ggplot2)
+library(scales)
+library(BMTFxns)
+library(plyr)
+library(dplyr)
+library(magrittr)
+library(reshape2)
+source("distribution_plots_of_returns.R")
+```
+
+## Risk and return
+
+The below is a fresher take on Andy Rachleffs [post](http://seekingalpha.com/article/4056039-risk-simple-appears?page=2) about risk and return. While the general idea was good, by making most of the mass appear above zero for even the high-risk portfolio, he was a bit misleading. It _still_ looked like the higest risk portfolio was best - the potential downside of the high risk portfolio wasn't much more than the low risk portfolio, but the upside was substantially more! 
+
+Of course, that's not really true. The fact is that, *_in the short run*_ risk dominates the potential outcomes. 
+The graphs below are more accurate about the relationship between risk and return over a one year investment horizon. 
+
+```{r}
+ps <- portstats_v2(0.20)
+low_risk <- rnorm(n = 10000, mean = ps['er'], sd = ps['sd']) / 100
+ps <- portstats_v2(0.5)
+medium_risk <- rnorm(n = 10000, mean = ps['er'], sd = ps['sd']) / 100
+ps <- portstats_v2(0.9)
+high_risk <- rnorm(n = 10000, mean = ps['er'], sd = ps['sd']) / 100
+
+
+datums <- data.frame(low_risk = low_risk, 
+                     medium_risk = medium_risk, 
+                     high_risk = high_risk)
+
+means <- as.data.frame(apply(datums, 2, mean))
+means$variable <- row.names(means)
+names(means) <- c("value", "variable")
+```
+
+
+```{r}
+datums_long <- melt(datums)
+
+pdat <- datums_long %>%
+  group_by(variable) %>%
+  do(data.frame(loc = density(.$value)$x,
+                dens = density(.$value)$y))
+
+pdat$dens <- ifelse(pdat$variable == 'medium_risk', pdat$dens + 15, pdat$dens)
+pdat$dens <- ifelse(pdat$variable == 'high_risk', pdat$dens + (15*2), pdat$dens)
+
+means$loc <- c(0, 15, 30)
+
+ggplot(pdat, aes(dens, loc, group = interaction(variable))) + 
+  geom_polygon(fill= adjustcolor("green", alpha.f = 0.5)) +
+  scale_x_continuous(breaks = c(0, 15, 30), labels = c('Low \n(20% stocks)', 'Medium \n(50% stocks)',"High \n(90% stocks)")) +
+  scale_y_continuous(breaks = pretty(pdat$loc), label=percent) +
+  ylab('Expected Return') + xlab("") + 
+  geom_hline(yintercept = 0, color = "dark grey") +
+  geom_point(data = means, aes(x = loc, y = value), size=2, color="dark green") +
+  theme_minimal() + theme(axis.text.y = element_text(colour = "grey")) + 
+  coord_cartesian(ylim = c(-0.4, 0.4)) 
+
+
+```
+
+## Risk and Time
+However.... this is just over a one year horizon. What if we take those same risk-return characteristic, and invest over 10 years? 
+
+Let's start with the 50% stock portfolio, and look at the _cumulative_ return distribution at each year from 1 to 10. We can see that as we invest for longer and longer, the mass of probability '_smears_' upwards. The dots on each graph correspond to the 20th, 50th, and 80ths percentile outcomes in each case. Note how initially the bad outcomes involve losses, but over time even the worse case gets better?  
+
+```{r}
+
+medium_risk_results<- cumulative_results(0.5)
+
+final_results <- data.frame(loc=NA, dens=NA, year=NA)
+for(obj in 1:length(cumul_densities)) {
+  temp <- cumul_densities[[obj]]
+  head(temp)
+  temp$year <- obj
+  final_results <- rbind(final_results, temp)
+}
+final_results_clean <- final_results[!is.na(final_results$year),]
+
+xfactor <- 4
+final_results_clean$dens_adj <- final_results_clean$dens + (xfactor * final_results_clean$year)
+
+cumul_quantiles_df <- data.frame(t(cumul_quantiles))
+ptile_names <- c("lower", "median", "higher")
+names(cumul_quantiles_df) <- ptile_names
+cumul_quantiles_df$year <- seq(1:10)
+cumul_quantiles_df_long <- melt(cumul_quantiles_df, measure.vars = ptile_names)
+cumul_quantiles_df_long$year_adj <- cumul_quantiles_df_long$year * xfactor
+```
+
+```{r}
+ggplot(final_results_clean, aes(dens_adj, loc, group=year)) + 
+  geom_polygon(fill= adjustcolor("green", alpha.f = 0.5)) +
+  scale_x_continuous(breaks = unique(final_results_clean$year)*xfactor, labels = unique(final_results_clean$year)) + 
+  scale_y_continuous(breaks = seq(-0.4, 1.2, 0.2), label=percent) +
+  ylab('Expected Return') + xlab("Years invested") + 
+  geom_point(data = cumul_quantiles_df_long, aes(year_adj, value, group=variable), color="dark green") +
+  geom_hline(yintercept = 0, color = "dark grey") +
+  theme_minimal() + theme(axis.text.y = element_text(colour = "grey")) + 
+  coord_cartesian(ylim = c(-0.4, 1.2)) 
+```
+
+### How much risk you're taking depends on how long you have to invest for
+
+```{r}
+low_risk_results<- cumulative_results(0.2)
+high_risk_results<- cumulative_results(0.9)
+
+final_results <- data.frame(loc=NA, dens=NA, year=NA)
+for(obj in 1:length(cumul_densities)) {
+  temp <- cumul_densities[[obj]]
+  head(temp)
+  temp$year <- obj
+  final_results <- rbind(final_results, temp)
+}
+
+final_results_clean <- final_results[!is.na(final_results$year),]
+
+xfactor <- 4
+final_results_clean$dens_adj <- final_results_clean$dens + (xfactor * final_results_clean$year)
+
+cumul_quantiles_df <- data.frame(t(cumul_quantiles))
+ptile_names <- c("lower", "median", "higher")
+names(cumul_quantiles_df) <- ptile_names
+cumul_quantiles_df$year <- seq(1:10)
+cumul_quantiles_df_long <- melt(cumul_quantiles_df, measure.vars = ptile_names)
+cumul_quantiles_df_long$year_adj <- cumul_quantiles_df_long$year * xfactor
+```
+
+```{r}
+ggplot(final_results_clean, aes(dens_adj, loc, group=year)) + 
+  geom_polygon(fill= adjustcolor("green", alpha.f = 0.5)) +
+  scale_x_continuous(breaks = unique(final_results_clean$year)*xfactor, labels = unique(final_results_clean$year)) + 
+  scale_y_continuous(breaks = seq(-0.4, 1.2, 0.2), label=percent) +
+  ylab('Expected Return') + xlab("Years invested") + 
+  geom_point(data = cumul_quantiles_df_long, aes(year_adj, value, group=variable), color="dark green") +
+  geom_hline(yintercept = 0, color = "dark grey") +
+  theme_minimal() + theme(axis.text.y = element_text(colour = "grey")) + 
+  coord_cartesian(ylim = c(-0.4, 1.2)) 
+```
