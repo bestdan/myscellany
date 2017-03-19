@@ -11,13 +11,16 @@ theme: cosmo
 knitr::opts_chunk$set(echo = F, warning = F, message = F)
 library(ggplot2)
 library(scales)
-library(BMTFxns)
 library(plyr)
 library(dplyr)
 library(magrittr)
 library(reshape2)
 source("distribution_plots_of_returns.R")
+
+# Key parameters used below
+risk_levels <- c(0.1, 0.5, 0.8)
 ptiles <- c(0.2, 0.5, 0.8)
+focus_year <- 7
 ```
 
 ## Risk and return
@@ -28,11 +31,11 @@ Of course, that's not really true. The fact is that, *_in the short run_* risk d
 The graphs below are more accurate about the relationship between risk and return over a one year investment horizon. 
 
 ```{r}
-ps <- portstats_v2(0.20)
+ps <- portstats(0.20)
 low_risk <- rnorm(n = 10000, mean = ps['er'], sd = ps['sd']) / 100
-ps <- portstats_v2(0.5)
+ps <- portstats(0.5)
 medium_risk <- rnorm(n = 10000, mean = ps['er'], sd = ps['sd']) / 100
-ps <- portstats_v2(0.9)
+ps <- portstats(0.9)
 high_risk <- rnorm(n = 10000, mean = ps['er'], sd = ps['sd']) / 100
 
 
@@ -114,7 +117,10 @@ ggplot(medium_risk_final_results_clean, aes(dens_adj, loc, group=year)) +
   coord_cartesian(ylim = c(-0.4, 1.2)) 
 ```
 
-### How much risk you're taking depends on how long you have to invest for
+### "Cumulative risk" depends "time"
+The graph below shows the _cumulative_ expected returns distribution for three different stock level portfolios over a `r focus_year` investment horizon. You can see that the low stock portfolio doesn't have a huge range of outcomes, but the higher stock portfolio does. 
+
+However, the lower percentile outcome in the high-stock portfolio (the lowest green dot) is just a bit worse than in the low-stock portfolio. But the median and upper-percentile outcomes are substantially higher. 
 
 ```{r}
 # Let's compare results of the different portfolios, specifically at the 10 year horizon. 
@@ -126,7 +132,7 @@ getYearResults <- function(results, year){
       cumul_quantiles = results$cumul_quantiles[,year])
 }
 
-focus_year <- 5
+
 
 low_df <- getYearResults(low_risk_results,focus_year)$cumul_densities
 low_df$risk <- 0.2
