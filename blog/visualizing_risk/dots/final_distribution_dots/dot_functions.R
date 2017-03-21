@@ -46,7 +46,7 @@ trans_plot <- function(results){
 
 stack_dotplot <- function(results){
   ggplot(data.frame(results=results), aes(y=results, x=1)) + 
-    geom_dotplot(binaxis = "y", stackdir = "centerwhole", binwidth = 1/100,  
+    geom_dotplot(binaxis = "y", stackdir = "up", binwidth = 1/100,  
                  fill = adjustcolor("dark green", alpha.f = 0.2), color = adjustcolor("dark green", alpha.f = 0.2)) + 
     coord_cartesian(xlim=c(-4000,4000)) + 
     scale_x_continuous(NULL, labels = NULL, breaks = NULL) + 
@@ -55,3 +55,4 @@ stack_dotplot <- function(results){
   
   
 }
+stack_dotplot(results[1:300])  
