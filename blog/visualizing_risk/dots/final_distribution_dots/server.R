@@ -12,6 +12,7 @@ library(ggplot2)
 library(scales)
 library(animation)
 source("dot_functions.R")
+
 # Define server logic required to draw a histogram
 shinyServer(function(input, output) {
 
@@ -19,8 +20,9 @@ shinyServer(function(input, output) {
 
     results <- cumulative_simulation(risk_level = input$riskLevel/100, n = input$n, t = input$timeHorizon)
 
-    
-
+    switch(input$graphType,
+           "dotplot_transparent" = dotplot_transparent(results),
+           "dotplot_stacked" = dotplot_stacked(results))
 
   })
 

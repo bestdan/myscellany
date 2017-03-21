@@ -24,7 +24,9 @@ shinyUI(fluidPage(
                    max = 100,
                    value = 50),
        numericInput("timeHorizon", label = "Time Horizon", min = 1, max = 50, value=10),
-       numericInput("n", label = "Number of obs", min = 100, max = 10000, value = 5000)
+       numericInput("n", label = "Number of obs", min = 100, max = 10000, value = 1000),
+       selectInput("graphType", label="Graph Type", choices = c("Dotplot: transparent" = "dotplot_transparent", "Dotplot: stacked" = "dotplot_stacked"), selected="dotplot_stacked")
+
     ),
 
     # Show a plot of the generated distribution

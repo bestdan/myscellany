@@ -26,33 +26,33 @@ cumulative_simulation <- function(risk_level, n=10, t=10){
 
 
 
-trans_plot <- function(results){
+dotplot_transparent <- function(results){
   results <- data.frame(x=rep(1, length(results)),
                         y=results)
   avg <- mean(results$y)
   results$dev <- results$y - avg
   results$xdev <- (abs(1/pmax(abs(results$dev),0.01))) ^ (1/3)
   results$x_adj <- (results$xdev  * ((rnorm(n = nrow(results), mean = 0, sd = 0.02))/10) + 1)
-  
+
   limoffset <- 0.05
   ggplot(results, aes(x_adj, y)) +
     geom_point(shape = 20, size=4,  color = adjustcolor("dark green", 0.10), position = position_dodge(width = 0.01)) +
     coord_cartesian(xlim=c(1-limoffset, 1+limoffset)) +
     scale_x_continuous(breaks = 1, label="") + xlab("") +
     scale_y_continuous(labels = percent) + ylab("Cumulative return") +
-    geom_hline(yintercept=0, color='dark grey')  
+    geom_hline(yintercept=0, color='dark grey')
 }
 
 
-stack_dotplot <- function(results){
-  ggplot(data.frame(results=results), aes(y=results, x=1)) + 
-    geom_dotplot(binaxis = "y", stackdir = "up", binwidth = 1/100,  
-                 fill = adjustcolor("dark green", alpha.f = 0.2), color = adjustcolor("dark green", alpha.f = 0.2)) + 
-    coord_cartesian(xlim=c(-4000,4000)) + 
-    scale_x_continuous(NULL, labels = NULL, breaks = NULL) + 
-    scale_y_continuous(labels = percent) + 
+dotplot_stacked <- function(results){
+  ggplot(data.frame(results=results), aes(y=results, x=1)) +
+    geom_dotplot(binaxis = "y", stackdir = "center", binwidth = 1/100,
+                 fill = adjustcolor("dark green", alpha.f = 0.2), color = adjustcolor("dark green", alpha.f = 0.2)) +
+    coord_cartesian(xlim=c(-4000,4000)) +
+    scale_x_continuous(NULL, labels = NULL, breaks = NULL) +
+    scale_y_continuous(labels = percent) +
     geom_vline(xintercept = 1, color= "dark grey")
-  
-  
+
+
 }
-stack_dotplot(results[1:300])  
+# dotplot_stacked(results[1:300])
