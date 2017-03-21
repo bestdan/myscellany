@@ -16,22 +16,17 @@ shinyUI(fluidPage(
   titlePanel("Stuff"),
 
   # Sidebar with a slider input for number of bins
-  sidebarLayout(
-    sidebarPanel(
-       sliderInput("riskLevel",
-                   "Risk Level",
-                   min = 0,
-                   max = 100,
-                   value = 50),
-       numericInput("timeHorizon", label = "Time Horizon", min = 1, max = 50, value=10),
-       numericInput("n", label = "Number of obs", min = 100, max = 10000, value = 1000),
-       selectInput("graphType", label="Graph Type", choices = c("Dotplot: transparent" = "dotplot_transparent", "Dotplot: stacked" = "dotplot_stacked"), selected="dotplot_stacked")
-
-    ),
-
-    # Show a plot of the generated distribution
-    mainPanel(
-       plotOutput("distPlot")
+  fluidPage(
+    fluidRow(
+      column(width = 6,
+             sliderInput("riskLevel","Risk Level", min = 0, max = 100, value = 50),
+             sliderInput("timeHorizon", label = "Time Horizon", min = 1, max = 50, value=10)),
+      column(width = 6,
+             numericInput("n", label = "Number of obs", min = 100, max = 10000, value = 300),
+             selectInput("graphType", label="Graph Type", choices = c("Dotplot: transparent" = "dotplot_transparent", "Dotplot: stacked" = "dotplot_stacked"), selected="dotplot_stacked")
+      )),
+    fluidRow(plotOutput("distPlot", height = "800px")
     )
   )
-))
+)
+)

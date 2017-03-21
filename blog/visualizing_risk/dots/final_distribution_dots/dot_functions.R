@@ -14,7 +14,7 @@ simulate_returns <- function(er, sd, n, t){
 }
 
 
-cumulative_simulation <- function(risk_level, n=10, t=10){
+cumulative_simulation <- function(risk_level, n=200, t=10){
 
   ps <- portstats(risk_level)
 
@@ -23,7 +23,7 @@ cumulative_simulation <- function(risk_level, n=10, t=10){
   returns_cumul <- as.numeric(apply(raw_returns, 2, function(x) {cumprod(x+1)}) - 1)
   return(returns_cumul)
 }
-
+# results <- cumulative_simulation(0.5)
 
 
 dotplot_transparent <- function(results){
@@ -45,14 +45,21 @@ dotplot_transparent <- function(results){
 
 
 dotplot_stacked <- function(results){
-  ggplot(data.frame(results=results), aes(y=results, x=1)) +
-    geom_dotplot(binaxis = "y", stackdir = "center", binwidth = 1/100,
+
+  ylims <- range(pretty(quantile(results, probs=c(0.01, 0.99))))
+  binwidth <- diff(ylims)/200
+
+  ggplot(data.frame(results=results), aes(y=results, x=0)) +
+    geom_dotplot(binaxis = "y", stackdir = "center", binwidth = binwidth,
                  fill = adjustcolor("dark green", alpha.f = 0.2), color = adjustcolor("dark green", alpha.f = 0.2)) +
-    coord_cartesian(xlim=c(-4000,4000)) +
+    coord_cartesian( ylim=ylims) +
     scale_x_continuous(NULL, labels = NULL, breaks = NULL) +
     scale_y_continuous(labels = percent) +
-    geom_vline(xintercept = 1, color= "dark grey")
+    geom_vline(xintercept = 0, color= "dark grey") +
+    geom_hline(yintercept = seq(-1, 10, 0.1), color = "light grey") + geom_hline(yintercept = 0, color = "dark grey") +
+    theme_light()
 
 
 }
-# dotplot_stacked(results[1:300])
+# results <- cumulative_simulation(0.5, n=1000)
+# dotplot_stacked(results)
