@@ -57,6 +57,7 @@ dotplot_stacked <- function(results){
     scale_y_continuous(labels = percent) +
     geom_vline(xintercept = 0, color= "dark grey") +
     geom_hline(yintercept = seq(-1, 10, 0.1), color = "light grey") + geom_hline(yintercept = 0, color = "dark grey") +
+    ylab("Cumulative growth") +
     theme_light()
 
 
