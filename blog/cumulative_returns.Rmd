@@ -1,0 +1,29 @@
+---
+title: "Westminster Robo Conference"
+author: "Daniel P. Egan"
+date: "10/1/2017"
+output: 
+  html_document: 
+    theme: cosmo
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(tidyquant, dplyr, magrittr, ggplot2, scales)
+
+```
+
+## Cumulative price returns
+```{r}
+tickers <- c("ACWI","EFA", "VTI", "VWO")
+prices <- tickers %>% tq_get %>% select(c("symbol", "date", "adjusted")) %>% 
+                              filter(date >= as.Date("2009-01-1")) %>%
+                              group_by(symbol) %>% mutate(growth = adjusted / head(adjusted,1))
+                            
+ggplot(prices, aes(y=growth-1, x=date, group=symbol, col=symbol)) + geom_line() + 
+  scale_y_continuous(labels=percent) + 
+  scale_color_hue(labels = c("World", "EFA", "US","EM")) + 
+  labs(y="Price Return", x="", color = "Stock market")
+```
+
