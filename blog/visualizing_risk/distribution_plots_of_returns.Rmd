@@ -9,12 +9,8 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = F, warning = F, message = F)
-library(ggplot2)
-library(scales)
-library(plyr)
-library(dplyr)
-library(magrittr)
-library(reshape2)
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(tidyquant, dplyr, magrittr, ggplot2, scales, reshape2)
 source("distribution_plots_of_returns.R")
 
 # Key parameters used below
@@ -23,28 +19,38 @@ ptiles <- c(0.2, 0.5, 0.8)
 focus_year <- 7
 ```
 
-## Trying to portray risk and return
-Andy Rachleffs recently wrote a [post](http://seekingalpha.com/article/4056039-risk-simple-appears?page=2) about how the standard efficient frontier graph of risk and return can mislead investors. While we generally know what the mean return is, but 'risk' is far harder to understand, they can have the perception that the highest risk & return portfolio is best. 
+## Visualizing risk and return
+Investor's usually *get* return. 
 
-To try to make it more 'realistic', he included the distribution of potential outcomes vertically, which is a nice touch. 
+Risk... well, risk is harder. Risk involves communicating not just that many outcomes are possible, but *how* likely they are. 
 
-But... it was still misleading! Notice how it _still_ looks like the higest risk portfolio was best: the potential downside of each portfolio is the same, but the high risk portfolio has substantially more upside! 
+So I'm in favor of anything that gives investors a better intuition of what risk really is. Which is why a while ago I was happy to see Andy Rachleffs write a [post](http://seekingalpha.com/article/4056039-risk-simple-appears?page=2) about how the standard efficient frontier graph of risk and return can mislead investors. While we generally know what the mean return is, but 'risk' is far harder to understand, they can have the perception that the highest risk & return portfolio is best. 
+
+To communicate the risk visually, he included probability distribution of potential outcomes vertically, which is a very nice touch. Kudos. 
+
+But... it was still misleading! Notice how it _still_ looks like the higest risk portfolio was best: the potential downside of each portfolio is the same, but the high risk portfolio has substantially more upside? Somehow, he fell into the same trap he was trying to teach others about. 
 
 ```{r, out.width = "600px", fig.align='center'}
 knitr::include_graphics("rachleff_risk_return_realistic.png")
 ```
 
 
-Of course, that's *_not_* an accurate portrayal of risk and return.  The fact is that, *_in the short run_* the risk dominates the potential outcomes of the portfolio, no the means. 
-The graph below is more realistic about the relationship between expected risk and return over a one year investment horizon. The dot represents the mean expected return. Notice how they all seem like they're at about the same place, compared to the difference in ranges? I think this depiction of risk and return is far more realistic, revealing how much more potential for downside there is in higher risk portfolios. 
+To be clear, I'm not ragging on Andy here. He had good intentions, and that's clearly a stylized example. I don't know of anyone else who stopped in their tracks when they saw that graph. 
+
+But... that's *_not_* an accurate portrayal of risk and return. So what does it really look like? 
+
+## Risk, return and time
+All the graphs below were created by creating different risk level portfolios by blending a risk (and return) free asset with a risky, higher returning one. The risk asset has a mean annual return of `r portstats(1)['er']`% and volatility of `r portstats(1)['vol']`%. When we say 100% risk, that's the 100% risky asset. 
+
+The graph below is a realistic version of the graph Andy presented. In this case, expected risk and return over a one year investment horizon. The dot represents the average expected return. Notice how they all seem like they're at about the same place, compared to the difference in ranges? This depiction shows the much greater potential for downside in higher risk portfolios. In the short-term, the dominant driver of gain or loss is the variance of the portfolio.
 
 ```{r}
 ps <- portstats(0.20)
-low_risk <- rnorm(n = 10000, mean = ps['er'], sd = ps['sd']) / 100
+low_risk <- rnorm(n = 10000, mean = ps['er'], sd = ps['vol']) / 100
 ps <- portstats(0.5)
-medium_risk <- rnorm(n = 10000, mean = ps['er'], sd = ps['sd']) / 100
+medium_risk <- rnorm(n = 10000, mean = ps['er'], sd = ps['vol']) / 100
 ps <- portstats(0.9)
-high_risk <- rnorm(n = 10000, mean = ps['er'], sd = ps['sd']) / 100
+high_risk <- rnorm(n = 10000, mean = ps['er'], sd = ps['vol']) / 100
 
 
 datums <- data.frame(low_risk = low_risk, 
@@ -76,7 +82,7 @@ ggplot(pdat, aes(dens, loc, group = interaction(variable))) +
   scale_y_continuous(breaks = pretty(pdat$loc), label=percent) + 
   ylab('Expected Return') + xlab("Expected Risk") + 
   geom_hline(yintercept = 0, color = "dark grey") +
-  geom_point(data = means, aes(x = loc, y = value), size=2, color="orange") +
+  geom_point(data = means, aes(x = loc, y = value), size=2, color="red") +
   theme_minimal() + theme(axis.text.y = element_text(colour = "dark grey")) + 
   coord_cartesian(ylim = c(-0.4, 0.4)) 
 
@@ -84,12 +90,11 @@ ggplot(pdat, aes(dens, loc, group = interaction(variable))) +
 ```
 
 
-## But, add time, and things get better..
-However.... these are expected returns over just a one year horizon. What if we take those same risk-return characteristic, and invested over 10 years? How might time change these outcomes? 
+## Everything is better with ~~bacon~~ time
+However.... these are expected returns over just a one year horizon. What if we take those same risk-return characteristics, and invested over 10 years? How might time change these outcomes? 
 
-Let's start with the 50% stock portfolio, and look at the _cumulative_ return distribution at each year from 1 to 10. We can see that as we invest for longer and longer, the mass of probability '_smears_' upwards. The dots on each graph correspond to the 20th, 50th, and 80ths percentile outcomes in each case. Note how initially the bad outcomes involve losses, but over time even the worse cases gets better, even positive? 
+Let's start with a 50% risky asset portfolio, and look at the _cumulative_ return distribution at each year from 1 to 10. We can see that as we invest for longer and longer, the mass of probability smears upwards. The dots on each graph correspond to the 20th, 50th, and 80ths percentile outcomes in each case. Note how initially the bad outcomes involve losses, but over time even the worse cases gets better, even positive? 
 
-Over time the _median_ dominates the _risk_ of the portfolio in determining if you'll experience gains or losses. 
 
 ```{r}
 
@@ -122,18 +127,20 @@ ggplot(medium_risk_final_results_clean, aes(dens_adj, loc, group=year)) +
   scale_x_continuous(breaks = unique(medium_risk_final_results_clean$year)*xfactor, labels = unique(medium_risk_final_results_clean$year)) + 
   scale_y_continuous(breaks = seq(-0.4, 1.2, 0.2), label=percent) +
   ylab('Expected Return') + xlab("Years invested") + 
-  geom_point(data = cumul_quantiles_df_long, aes(year_adj, value, group=variable), color="orange") +
+  geom_point(data = cumul_quantiles_df_long, aes(year_adj, value, group=variable), color="red") +
   geom_hline(yintercept = 0, color = "dark grey") +
   theme_minimal() + theme(axis.text.y = element_text(colour = "grey")) + 
   coord_cartesian(ylim = c(-0.4, 1.2)) 
 ```
 
-### "Cumulative risk" depends "time"
+### Cumulative risk depends time
 The graph below shows the _cumulative_ expected returns distribution for three different stock level portfolios over a `r focus_year` investment horizon. You can see that the low stock portfolio doesn't have a huge range of outcomes, but the higher stock portfolio does. 
 
-However, the below average percentile outcome in the high-stock portfolio (the lowest orange dot) is only a little bit worse than in the low-stock portfolio. But the median and upper-percentile outcomes are substantially higher. 
+However, the below average percentile outcome in the high-stock portfolio (the lowest red dot) is only a little bit worse than in the low-stock portfolio. But the median and upper-percentile outcomes are substantially higher. 
 
 It's only when we invest over longer periods of time that we begin to see higher risk investments dominate lower ones. 
+
+In the short term, the variance in outcomes dominates the chance you'll lose money. In the long term, the average matters more.
 
 ```{r}
 # Let's compare results of the different portfolios, specifically at the 10 year horizon. 
@@ -194,10 +201,17 @@ ggplot(all_df, aes(dens_adj, loc, group=risk)) +
   geom_polygon(fill= adjustcolor("dark green", alpha.f = 0.2), color="dark green") +
   scale_x_continuous(breaks = unique(all_df$adj), labels = percent(unique(all_df$risk))) + 
   scale_y_continuous(breaks = seq(-0.4, 1.2, 0.2), label=percent) +
-  ylab('Expected Cumulative Return') + xlab("Risk Level") + ggtitle(paste0("Expected final return distributions\nover a ", focus_year, " holding period for different risk levels")) + 
-  geom_point(data = cumul_quantiles_df_long, aes(adj, value, group=variable), color="orange") +
+  ylab('Expected Cumulative Return') + xlab("Risk Level") + 
+  ggtitle(paste0("Expected final return distributions\nover a ", focus_year, " year holding period for different risk levels")) + 
+  geom_point(data = cumul_quantiles_df_long, aes(adj, value, group=variable), color="red") +
   geom_hline(yintercept = 0, color = "dark grey") +
   theme_minimal() + theme(axis.text.y = element_text(colour = "grey")) + 
   coord_cartesian(ylim = c(-0.4, 1.2)) 
 ```
 
+## Conclusion
+Kudos to Andy for putting together these graphs. I think they do a better job than a standard efficient frontier plot at communicating the relationship between risk and return. They're even better when you add in some time. 
+
+
+## Some caveats etc. 
+I used very simple assumptions about the risk and return here. While I'm aware of the evidence of mean reversion in variance ratios, volatility clustering etc they aren't core to the illustration. Feel free to modify the code and use whatever data-generating-process you want. 

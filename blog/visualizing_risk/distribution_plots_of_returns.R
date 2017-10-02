@@ -3,15 +3,15 @@
 # Anchored to a 100% stock portfolio with 6% return and 17% vol. 
 portstats <- function(risk_level){
   er <- 6 * risk_level
-  sd <- 17 * risk_level
-  return(c(er = er, sd = sd))
+  vol <- 17 * risk_level
+  return(c(er = er, vol = vol))
 }
 
 
 # A workhorse function to produce the results. 
 cumulative_results <- function(risk_level, ptiles = c(0.20, 0.5, 0.80) ){
   ps <- portstats(risk_level)
-  raw_returns <- matrix(rnorm(n = 100000, mean = ps['er'], sd = ps['sd']) / 100, 
+  raw_returns <- matrix(rnorm(n = 100000, mean = ps['er'], sd = ps['vol']) / 100, 
                         nrow=10)
   returns_cumul <- apply(raw_returns, 2, function(x) {cumprod(x+1)}) - 1
   
