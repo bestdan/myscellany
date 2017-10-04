@@ -10,7 +10,7 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = F, warning = F, message = F)
 if (!require("pacman")) install.packages("pacman")
-pacman::p_load(tidyquant, dplyr, magrittr, ggplot2, scales, reshape2)
+pacman::p_load(dplyr, magrittr, ggplot2, scales, reshape2)
 source("distribution_plots_of_returns.R")
 
 # Key parameters used below
@@ -45,46 +45,25 @@ All the graphs below were created by creating different risk level portfolios by
 The graph below is a realistic version of the graph Andy presented. In this case, expected risk and return over a one year investment horizon. The dot represents the average expected return. Notice how they all seem like they're at about the same place, compared to the difference in ranges? This depiction shows the much greater potential for downside in higher risk portfolios. In the short-term, the dominant driver of gain or loss is the variance of the portfolio.
 
 ```{r}
-ps <- portstats(0.20)
-low_risk <- rnorm(n = 10000, mean = ps['er'], sd = ps['vol']) / 100
-ps <- portstats(0.5)
-medium_risk <- rnorm(n = 10000, mean = ps['er'], sd = ps['vol']) / 100
-ps <- portstats(0.9)
-high_risk <- rnorm(n = 10000, mean = ps['er'], sd = ps['vol']) / 100
+one_year_risk_levels <- c(0.20, 0.50, 0.80)
+
+one_year_outcomes_df <- data.frame()
+for(risk_level in one_year_risk_levels){
+  ps <- portstats(risk_level)
+  temp_dist <- rnorm(n = 10000, mean = ps['er'], sd = ps['vol']) / 100
+  one_year_outcomes_df <- rbind(one_year_outcomes_df, 
+                                data.frame(risk_level = risk_level, value=temp_dist))
+}
+head(one_year_outcomes_df)
+one_year_medians <- aggregate(value ~ risk_level, data =one_year_outcomes_df, FUN = median)
 
 
-datums <- data.frame(low_risk = low_risk, 
-                     medium_risk = medium_risk, 
-                     high_risk = high_risk)
-
-means <- as.data.frame(apply(datums, 2, mean))
-means$variable <- row.names(means)
-names(means) <- c("value", "variable")
 ```
 
 
 ```{r}
-datums_long <- melt(datums)
-
-pdat <- datums_long %>%
-  group_by(variable) %>%
-  do(data.frame(loc = density(.$value)$x,
-                dens = density(.$value)$y))
-
-pdat$dens <- ifelse(pdat$variable == 'medium_risk', pdat$dens + 15, pdat$dens)
-pdat$dens <- ifelse(pdat$variable == 'high_risk', pdat$dens + (15*2), pdat$dens)
-
-means$loc <- c(0, 15, 30)
-
-ggplot(pdat, aes(dens, loc, group = interaction(variable))) + 
-  geom_polygon(fill= adjustcolor("dark green", alpha.f = 0.2), color="dark green") +
-  scale_x_continuous(breaks = c(0, 15, 30), labels = c('Low \n(20% stocks)', 'Medium \n(50% stocks)',"High \n(90% stocks)")) +
-  scale_y_continuous(breaks = pretty(pdat$loc), label=percent) + 
-  ylab('Expected Return') + xlab("Expected Risk") + 
-  geom_hline(yintercept = 0, color = "dark grey") +
-  geom_point(data = means, aes(x = loc, y = value), size=2, color="red") +
-  theme_minimal() + theme(axis.text.y = element_text(colour = "dark grey")) + 
-  coord_cartesian(ylim = c(-0.4, 0.4)) 
+pdat <- outcomeDensity(one_year_outcomes_df, group_var = "risk_level")
+ggplot_vertical_dist(pdat, group_var="risk_level")
 
 
 ```
