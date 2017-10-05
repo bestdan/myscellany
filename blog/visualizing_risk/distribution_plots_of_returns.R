@@ -21,60 +21,67 @@ cumulative_results <- function(risk_level, ptiles = c(0.20, 0.5, 0.80), years = 
   
   # For each year, find the pdf of cumulative returns
   returns_cumul_dens_by_year <- apply(returns_cumul, 1, density)
+  names(returns_cumul_dens_by_year) <- paste0("year_",seq_len(length(returns_cumul_dens_by_year)))
   
   # Create a list of data.frames the PDFs for each year.
-  cumul_densities <- lapply(returns_cumul_dens_by_year, function(z){
-    data.frame(loc = z$x,
+  cumul_densities <- lapply(seq_along(returns_cumul_dens_by_year), function(i){
+    z <- returns_cumul_dens_by_year[[i]]
+    data.frame(year = as.numeric(gsub("year_","",names(returns_cumul_dens_by_year)[[i]])), 
+               risk = risk_level,
+               loc = z$x,
                dens =z$y)
   })
-  
-  # Find the focus percentils
+  cumul_densities_df <-  do.call(rbind, cumul_densities)
+  # Find the focus percentiles
   cumul_quantiles <-  apply(returns_cumul, 1, function(x){
     quantile(x, probs = ptiles)
   })
   
-  return(list(cumul_densities = cumul_densities,
+  return(list(cumul_densities = cumul_densities_df,
               cumul_quantiles = cumul_quantiles))
 }
-res_50 <- cumulative_results(0.5)
-res_100 <- cumulative_results(1)
-str(res)
+# res_50 <- cumulative_results(0.5)
+# str(res_50$cumul_densities)
+# res_100 <- cumulative_results(1)
+# res_100_50_df <- rbind(res_50$cumul_densities, res_100$cumul_densities)
 
 # Use it to general a large amount of cumulative returns for a given risk profile, 
 # which is later sub-setted to get just the number of desired years. 
 # More work up front, less work later.
 
-outcomeDensity <- function(df, group_var){
-  df %>% group_by(risk_level) %>% do(data.frame(loc = density(.$value)$x,
-                                                dens = density(.$value)$y))
-}
-
-
-
-ex_df <- cbind(res_50$cumul_densities[7])
-
-ggplot_vertical_dist <- function(df, group_var, addMedians = TRUE){
-
-  tp <-  ggplot(data = df, aes_string(y = group_var , 
-                               x = "loc", 
-                               height ="dens")) +
-    geom_density_ridges(scale = 0.9, stat = "identity",
+ggplot_vertical_dist <- function(df, group_var, ylims = NULL,addMedians = TRUE){
+  #browser()
+  df[,group_var] <- as.factor(df[,group_var])
+  
+  if(nlevels(df[,group_var]) < 2) warning("group_var only has 1 level.")
+  
+  tp <-  ggplot(data = df, aes_string(y = group_var, 
+                                      x = "loc", 
+                                      height ="dens")) 
+  
+  tp <- tp + geom_density_ridges(scale = 0.9, stat = "identity",
                         fill = adjustcolor("dark green", alpha.f = 0.2), 
-                        color = "dark green") + 
-    scale_x_continuous(label=percent) +
-    coord_flip() +
-    ylab('Expected Return') + xlab("Expected Risk") +
-    geom_hline(yintercept = 0, color = "dark grey") +
-    theme_minimal() + theme(axis.text.y = element_text(colour = "dark grey")) #+
-  #coord_cartesian(ylim = c(-0.4, 0.4))
-  tp
+                        color = "dark green") 
+  
+  tp <- tp + scale_x_continuous(label=percent) + 
+    xlab('Expected Return') + ylab("Expected Risk") +
+    geom_vline(xintercept = 0, color = "dark grey") +
+    theme_minimal() + theme(axis.text.y = element_text(colour = "dark grey")) 
+  
+  if(!is.null(ylims)){
+    tp <- tp + coord_flip(xlim=ylims) 
+  } else {
+    tp <- tp + coord_flip() 
+  }
+  
+  
   # if(addMedians){
   #     temp_medians <-
   #     tp + geom_point(data = temp_medians, aes(x = group_var, y = value), size=2, color="red")
   #   } else {
   #     tp
   #   }
-  
+  tp
 }
 #' @examples 
 # ex_df <- data.frame(group = as.factor(rep(c("a","b","c"), each=100)), 
@@ -82,4 +89,15 @@ ggplot_vertical_dist <- function(df, group_var, addMedians = TRUE){
 #                     loc = rep(seq(1:100),3))
 # 
 # ggplot_vertical_dist(ex_df, "group")
-# 
+
+ggplot_vertical_dist(res_100_50_df %>% filter(risk == 0.50), group_var = "year")
+ggplot_vertical_dist(res_100_50_df %>% filter(year==1), group_var = "risk")
+ggplot_vertical_dist(res_100_50_df %>% filter(year==1), group_var = "risk", ylims = c(-1,2))
+
+
+
+
+# outcomeDensity <- function(df, group_var){
+#   df %>% group_by(risk_level) %>% do(data.frame(loc = density(.$value)$x,
+#                                                 dens = density(.$value)$y))
+# }
