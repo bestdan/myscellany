@@ -1,6 +1,6 @@
 
 if (!require("pacman")) install.packages("pacman")
-pacman::p_load(ggplot2, scales, ggridges)
+pacman::p_load(ggplot2, scales, ggridges, reshape2)
 
 # A very simply way to get fixed-Sharpe portfolios stats based on risk level.
 # Anchored to a 100% stock portfolio with 6% return and 17% vol.
@@ -36,6 +36,11 @@ cumulative_results <- function(risk_level, ptiles = c(0.20, 0.5, 0.80), years = 
   cumul_quantiles <-  apply(returns_cumul, 1, function(x){
     quantile(x, probs = ptiles)
   })
+  cumul_quantiles <- data.frame(t(cumul_quantiles))
+  cumul_quantiles$year = seq_len(nrow(cumul_quantiles))
+  cumul_quantiles <- melt(cumul_quantiles, id="year", variable.name = "percentile")
+  cumul_quantiles$percentile <- as.numeric(gsub("[^0-9\\]", "", cumul_quantiles$percentile))/100
+  cumul_quantiles$risk = risk_level
   
   return(list(cumul_densities = cumul_densities_df,
               cumul_quantiles = cumul_quantiles))
@@ -44,12 +49,13 @@ cumulative_results <- function(risk_level, ptiles = c(0.20, 0.5, 0.80), years = 
 # str(res_50$cumul_densities)
 # res_100 <- cumulative_results(1)
 # res_100_50_df <- rbind(res_50$cumul_densities, res_100$cumul_densities)
+# res_100_50_qt <- rbind(res_50$cumul_quantiles, res_100$cumul_quantiles)
 
 # Use it to general a large amount of cumulative returns for a given risk profile, 
 # which is later sub-setted to get just the number of desired years. 
 # More work up front, less work later.
 
-ggplot_vertical_dist <- function(df, group_var, ylims = NULL,addMedians = TRUE){
+ggplot_vertical_dist <- function(df, group_var, ylims = NULL, quantile_data = NULL){
   #browser()
   df[,group_var] <- as.factor(df[,group_var])
   
@@ -63,9 +69,7 @@ ggplot_vertical_dist <- function(df, group_var, ylims = NULL,addMedians = TRUE){
                         fill = adjustcolor("dark green", alpha.f = 0.2), 
                         color = "dark green") 
   
-  tp <- tp + scale_x_continuous(label=percent) + 
-    xlab('Expected Return') + ylab("Expected Risk") +
-    geom_vline(xintercept = 0, color = "dark grey") +
+  tp <- tp + geom_vline(xintercept = 0, color = "dark grey") +
     theme_minimal() + theme(axis.text.y = element_text(colour = "dark grey")) 
   
   if(!is.null(ylims)){
@@ -74,13 +78,13 @@ ggplot_vertical_dist <- function(df, group_var, ylims = NULL,addMedians = TRUE){
     tp <- tp + coord_flip() 
   }
   
+  if(!is.null(quantile_data)){
+    
+    quantile_data[,group_var] <- as.factor(quantile_data[,group_var])
+    quantile_data$dens <- NA
+    tp <-  tp + geom_point(data = quantile_data, aes_string(x = "value", y = group_var), size=2, color="red")
+  } 
   
-  # if(addMedians){
-  #     temp_medians <-
-  #     tp + geom_point(data = temp_medians, aes(x = group_var, y = value), size=2, color="red")
-  #   } else {
-  #     tp
-  #   }
   tp
 }
 #' @examples 
@@ -89,15 +93,10 @@ ggplot_vertical_dist <- function(df, group_var, ylims = NULL,addMedians = TRUE){
 #                     loc = rep(seq(1:100),3))
 # 
 # ggplot_vertical_dist(ex_df, "group")
-
-ggplot_vertical_dist(res_100_50_df %>% filter(risk == 0.50), group_var = "year")
-ggplot_vertical_dist(res_100_50_df %>% filter(year==1), group_var = "risk")
-ggplot_vertical_dist(res_100_50_df %>% filter(year==1), group_var = "risk", ylims = c(-1,2))
-
-
-
-
-# outcomeDensity <- function(df, group_var){
-#   df %>% group_by(risk_level) %>% do(data.frame(loc = density(.$value)$x,
-#                                                 dens = density(.$value)$y))
-# }
+# ggplot_vertical_dist(res_100_50_df %>% filter(risk == 0.50), group_var = "year")
+# ggplot_vertical_dist(res_100_50_df %>% filter(year==1), group_var = "risk")
+# tp <- ggplot_vertical_dist(res_100_50_df %>% filter(year==1), group_var = "risk", ylims = c(-1,2))
+# ggplot_vertical_dist(res_100_50_df %>% filter(year==1), group_var = "risk", ylims = c(-1,2), 
+#                      quantile_data =  res_100_50_qt %>% filter(year==1))
+# 
+# 
