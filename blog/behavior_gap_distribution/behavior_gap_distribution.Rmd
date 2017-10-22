@@ -1,0 +1,47 @@
+---
+title: "Behavior Gap Distribution"
+author: "Daniel P. Egan"
+date: "10/22/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+if(!require(pacman)) install.packages("pacman")
+pacman::p_load(scales, broom, ggplot2)
+```
+
+## Graphic distribution of hypothetical behavior gap
+
+
+```{r cars}
+
+
+
+n <- 10000
+bgap <- rbeta(n, 5, 1.5)
+expander <- 14
+bgap_mod <- ((bgap +1) *expander) - (expander * 1.86)
+bgap_mod_dens_df <- tidy(density(bgap_mod))
+ggplot(bgap_mod_dens_df) + 
+  geom_area(aes(x=x, y=y), fill=adjustcolor("light blue", alpha.f = 0.6)) + 
+  geom_vline(xintercept = 0, col="dark grey") + 
+  scale_x_continuous(label=function(x) percent(x/100), breaks = c(seq(-10,5, 2))) + 
+  theme(axis.text.y  =element_blank(),
+        axis.ticks.y =element_blank(),
+        axis.title.y=element_blank(),
+        legend.position="none") + xlab("Behavior Gap")
+
+mean(bgap_mod)
+
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
