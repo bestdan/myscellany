@@ -1,6 +1,6 @@
 rm(list=ls())
 if(!require(pacman)) install.packages(pacman)
-pacman::p_load("markovchain", ggplot2, scales, reshape2, dplyr, rowr)
+pacman::p_load("markovchain", ggplot2, scales, reshape2, dplyr, rowr, zoo)
 
 # Define the data-generating process ----
 years <- 10
@@ -11,18 +11,19 @@ good_vol <- 12
 bad_er <- 0
 bad_vol <- 20
 
+market_states <- c("good", "bad")
+good_to_bad_transition_prob <- 0.25
+bad_to_good_transition_prob <- 0.35
+
 window <- 22
-threshold_p <- 0.02 # 2% annual retur
+threshold_p <- 0.02 # 2% annual return
 set.seed(8675309) 
+
 
 good_market_returns <- matrix(rnorm(nobs * sims, mean = good_er, sd=good_vol), ncol = sims, nrow=nobs) 
 good_market_returns_daily <- (1 + good_market_returns/100) ^ (1/252)
 bad_market_returns <- matrix(rnorm(nobs * sims, mean = bad_er, sd=bad_vol), ncol = sims, nrow=nobs)
 bad_market_returns_daily <- (1 + bad_market_returns/100) ^ (1/252)
-
-market_states <- c("good", "bad")
-good_to_bad_transition_prob <- 0.3
-bad_to_good_transition_prob <- 0.3
 
 byRow <- TRUE
 market_transition_matrix <- matrix(data = c((1-good_to_bad_transition_prob), good_to_bad_transition_prob, 
@@ -45,13 +46,25 @@ bad_index <- which(mc_market_sim_states == "bad")
 mc_market_sim_returns[good_index] <- good_market_returns_daily[good_index]
 mc_market_sim_returns[bad_index] <- bad_market_returns_daily[bad_index]
 mc_market_sim_returns[1, ] <- 1
-mc_market_sim_returns_cumul <- apply(mc_market_sim_returns, 2, function(x) cumprod(x))
-
-mc_market_sim_returns_df_long <- melt(mc_market_sim_returns_cumul)
-# ggplot(mc_market_sim_returns_df_long %>% filter(Var2 <200)) + 
-#   geom_line(aes(x=Var1, y=value, group = Var2), color = adjustcolor("dark green",alpha.f = 0.2 ))  
 
 mc_market_sim_returns_decimal <- mc_market_sim_returns - 1
+
+# Generate a similar world, but without regime switching. This will be the 'null world'.
+
+empirical_mean <- mean(mc_market_sim_returns_decimal)
+empirical_sd   <- sd(mc_market_sim_returns_decimal)
+
+
+mc_market_sim_returns_null_decimal <- matrix(rnorm(n = sims * nobs, mean = empirical_mean*100, sd = empirical_sd*100), 
+                                     nrow = nrow(mc_market_sim_states), ncol = ncol(mc_market_sim_states)) / 100
+mc_market_sim_returns_null_decimal[1:10, 1:10]
+# Cumulative returns
+mc_market_sim_returns_cumul <- apply(mc_market_sim_returns, 2, function(x) cumprod(x))
+mc_market_sim_returns_null_cumul <- apply(mc_market_sim_returns_null_decimal, 2, function(x) cumprod(x+1))
+
+mc_market_sim_returns_df_long <- melt(mc_market_sim_returns_cumul)
+mc_market_sim_returns_null_df_long <- melt(mc_market_sim_returns_null_cumul)
+
 
 # Define a strategy that should work in that process
 

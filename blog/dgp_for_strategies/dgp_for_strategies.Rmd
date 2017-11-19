@@ -1,5 +1,5 @@
 ---
-title: "DGP and Strategy Testing"
+title: "Front-testing strategies"
 author: "Daniel Egan"
 date: "11/12/2017"
 output: 
@@ -10,6 +10,7 @@ editor_options:
 ---
 
 ```{r setup, include=FALSE}
+rm(list=ls())
 if(!require(pacman)) install.packages("pacman")
 pacman::p_load(ggplot2, scales, dplyr, knitr, janitor, ggridges)
 knitr::opts_chunk$set(echo = FALSE, warnings = FALSE, message = FALSE)
@@ -18,6 +19,10 @@ knitr::opts_chunk$set(echo = FALSE, warnings = FALSE, message = FALSE)
 
 load("dgp_for_strategies.RData")
 ```
+
+This RMD supports the post "Frontesting"
+Draft [here](https://docs.google.com/document/d/1NykeONtH70vBF2z6c5LGIVbHAw-iPqx_7ghWGVcmvj8/edit#). 
+
 
 ## Simulating a regime switching market
 Each line below is a simulation of a market environment. The underlying pattern is a mix of 'good' and 'bad' markets. 
@@ -123,10 +128,14 @@ cumul_values_all_wide <- reshape(cumul_values_all, direction = "wide",
                                   idvar = c("Var1", "Var2"), timevar = "strategy" )
 cumul_values_all_wide   <- cumul_values_all_wide %>% mutate(premium = value.active - value.passive) 
 
+toyear <- function(x){
+ as.character((as.numeric(x)+251)/252)
+}
 ggplot(cumul_values_all_wide %>% filter(Var1 %in% round(seq(1, nobs, 252)))) +
-  geom_density_ridges(aes(x=premium, y=as.factor(Var1), scale=1), fill=adjustcolor("blue", alpha.f = 0.5)) + 
-  geom_vline(xintercept = 0, col="dark grey") + scale_x_continuous(label=percent) + 
-  ylab("Days") 
+  geom_density_ridges(aes(x=premium, y=as.factor(Var1), scale=1), fill=adjustcolor("dark blue", alpha.f = 0.6), color=NA) + 
+  geom_vline(xintercept = 0, col="white") + 
+  scale_x_continuous(label=percent) + scale_y_discrete(labels = toyear) + 
+  ylab("Years") + xlab("Active return premium")
 
 ```
 
