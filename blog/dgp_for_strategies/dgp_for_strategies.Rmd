@@ -134,6 +134,11 @@ ggplot(cumul_values_all_wide %>% filter(Var1 %in% round(seq(252, nobs, 252)))) +
   scale_y_discrete(labels = dayToYear) + 
   ylab("Years") + xlab("Strategy outperformance %")
 
+ggplot(cumul_values_all_wide %>% filter(Var1 %in% round(seq(252, nobs, 252)))) +
+  geom_density_ridges2(aes(x=premium, y=as.factor(Var1), scale=1), fill=light_blue_trans, color = NA) + 
+  geom_vline(xintercept = 0, col="dark grey") + scale_x_continuous(label=percent) + 
+  scale_y_discrete(labels = dayToYear) + 
+  ylab("Years") + xlab("Strategy outperformance") + coord_flip()
 ```
 
 
@@ -142,5 +147,20 @@ ggplot(cumul_values_all_wide %>% filter(Var1 %in% round(seq(252, nobs, 252)))) +
   geom_density_ridges2(aes(x=value.passive, y=as.factor(Var1), scale=1), fill=light_blue_trans, color = NA) + 
   geom_vline(xintercept = 1, col="dark grey") + scale_x_continuous(label=percent) + 
   scale_y_discrete(labels = dayToYear) + 
-  ylab("Years") + xlab("Strategy outperformance %")
+  ylab("Years") + xlab("Strategy outperformance")
+```
+
+
+```{r}
+win_ratio <- cumul_values_all_wide %>% group_by(Var1) %>% summarize(win_rate = mean(sign(premium)))
+
+kable(filter(win_ratio, Var1 %in% c(c(0, 30, 90, 120, 180, 240), seq(252, 252 * 5, 252))))
+
+
+ggplot(filter(win_ratio, Var1 <= 252 * 5)) +
+  geom_area(aes(x=Var1, y=win_rate), fill="light blue") + 
+  geom_hline(yintercept = 0.5, col="dark grey") + scale_y_continuous(label=percent) + 
+  scale_x_continuous(breaks = seq(0, 252 * 5, 252), labels = dayToYear) +
+  xlab("Years") + ylab("Strategy Win Ratio") 
+
 ```
