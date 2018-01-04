@@ -11,12 +11,13 @@ editor_options:
 
 ```{r setup, include=FALSE}
 if(!require(pacman)) install.packages("pacman")
-pacman::p_load(ggplot2, scales, dplyr, knitr, janitor, ggridges)
+pacman::p_load(ggplot2, scales, dplyr, knitr, janitor, ggridges, here)
+
 knitr::opts_chunk$set(echo = FALSE, warnings = FALSE, message = FALSE)
 
+load(here::here("blog", "dgp_for_strategies", "data","dgp_for_strategies.RData")) # ~240MB of Data
 
-
-load("dgp_for_strategies.RData")
+light_blue_trans <- adjustcolor("light blue", alpha.f = 0.65)     
 ```
 
 ## Simulating a regime switching market
@@ -109,8 +110,9 @@ ggplot(year1_values_comp_wide) +
 
 year1_values_comp_wide <- year1_values_comp_wide %>% mutate(premium = value.active - value.passive) 
 
+
 ggplot(year1_values_comp_wide) + 
-  geom_density(aes(x=premium), fill = "blue", alpha = 0.5) + 
+  geom_density(aes(x=premium), fill = light_blue_trans ,color=NA) + 
   geom_vline(xintercept = 0, col="dark grey") + scale_x_continuous(label = percent)
 ```
 
@@ -122,11 +124,23 @@ We can see the effect of time on the strategy, as in the first year it's a coin 
 cumul_values_all_wide <- reshape(cumul_values_all, direction = "wide", 
                                   idvar = c("Var1", "Var2"), timevar = "strategy" )
 cumul_values_all_wide   <- cumul_values_all_wide %>% mutate(premium = value.active - value.passive) 
+dayToYear <- function(x){
+  (as.numeric(x))/252
+}
 
-ggplot(cumul_values_all_wide %>% filter(Var1 %in% round(seq(1, nobs, 252)))) +
-  geom_density_ridges(aes(x=premium, y=as.factor(Var1), scale=1), fill=adjustcolor("blue", alpha.f = 0.5)) + 
+ggplot(cumul_values_all_wide %>% filter(Var1 %in% round(seq(252, nobs, 252)))) +
+  geom_density_ridges2(aes(x=premium, y=as.factor(Var1), scale=1), fill=light_blue_trans, color = NA) + 
   geom_vline(xintercept = 0, col="dark grey") + scale_x_continuous(label=percent) + 
-  ylab("Days") 
+  scale_y_discrete(labels = dayToYear) + 
+  ylab("Years") + xlab("Strategy outperformance %")
 
 ```
 
+
+```{r}
+ggplot(cumul_values_all_wide %>% filter(Var1 %in% round(seq(252, nobs, 252)))) +
+  geom_density_ridges2(aes(x=value.passive, y=as.factor(Var1), scale=1), fill=light_blue_trans, color = NA) + 
+  geom_vline(xintercept = 1, col="dark grey") + scale_x_continuous(label=percent) + 
+  scale_y_discrete(labels = dayToYear) + 
+  ylab("Years") + xlab("Strategy outperformance %")
+```
