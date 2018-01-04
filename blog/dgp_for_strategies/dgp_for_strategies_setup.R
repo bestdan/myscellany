@@ -1,5 +1,4 @@
 rm(list=ls())
-here("blog", "dgp_for_strategies")
 if(!require(pacman)) install.packages(pacman)
 pacman::p_load("markovchain", ggplot2, scales, reshape2, dplyr, rowr, zoo, here)
 
@@ -23,9 +22,9 @@ set.seed(8675309)
 
 #### This is the setup of a regime-changing type process switching from good to bad etc.
 good_market_returns <- matrix(rnorm(nobs * sims, mean = good_er, sd=good_vol), ncol = sims, nrow=nobs)
-good_market_returns_daily <- (1 + good_market_returns/100) ^ (1/252)
+good_market_returns_daily <- ((1 + good_market_returns/100) ^ (1/252))-1
 bad_market_returns <- matrix(rnorm(nobs * sims, mean = bad_er, sd=bad_vol), ncol = sims, nrow=nobs)
-bad_market_returns_daily <- (1 + bad_market_returns/100) ^ (1/252)
+bad_market_returns_daily <- ((1 + bad_market_returns/100) ^ (1/252))-1
 market_states <- c("good", "bad")
 byRow <- TRUE
 market_transition_matrix <- matrix(data = c((1-good_to_bad_transition_prob), good_to_bad_transition_prob,
@@ -40,31 +39,24 @@ sim_vector <- 1:sims
 mc_market_sim_states <- as.matrix(sapply(sim_vector, function(x) rmarkovchain(n = nobs , object = mc_market, t0 = "good")),
                                   nrow=nobs,ncol=sims)
 
-mc_market_sim_returns <- matrix(NA, nrow = nrow(mc_market_sim_states), ncol = ncol(mc_market_sim_states))
+market_sim_returns_alternative <- matrix(NA, nrow = nrow(mc_market_sim_states), ncol = ncol(mc_market_sim_states))
 
 good_index <- which(mc_market_sim_states == "good")
 bad_index <- which(mc_market_sim_states == "bad")
 
-mc_market_sim_returns[good_index] <- good_market_returns_daily[good_index]
-mc_market_sim_returns[bad_index] <- bad_market_returns_daily[bad_index]
-mc_market_sim_returns[1, ] <- 1
-mc_market_sim_returns_cumul <- apply(mc_market_sim_returns, 2, function(x) cumprod(x))
+market_sim_returns_alternative[good_index] <- good_market_returns_daily[good_index]
+market_sim_returns_alternative[bad_index] <- bad_market_returns_daily[bad_index]
+market_sim_returns_alternative[1, ] <- 0
 
-mc_market_sim_returns_df_long <- melt(mc_market_sim_returns_cumul)
-mc_market_sim_returns_decimal <- mc_market_sim_returns - 1
 
 ## Null DGP Market Outcomes ------
-
 ## We want these to be similar in ER etc to the Alternative outcomes, so we'll just do a random
 ## normal sample from the empirical outcomes.
-null_market_sim_returns <- matrix(rnorm(n = length(mc_market_sim_returns),
-                                        mean = mean(mc_market_sim_returns-1),
-                                        sd(mc_market_sim_returns-1)),
-                                  nrow = nrow(mc_market_sim_returns))
+market_sim_returns_null <- matrix(rnorm(n = length(market_sim_returns_alternative),
+                                        mean = mean(market_sim_returns_alternative * 100),
+                                        sd = sd(market_sim_returns_alternative*100)),
+                                  nrow = nrow(market_sim_returns_alternative)) / 100
 
-
-
-# Simulating strategy outcomes -----
 
 ##  Alternative Strategy ----
 strategy_market_timing <- function(return_data, threshold, weighted = FALSE){
@@ -87,110 +79,61 @@ threshold <- ((1 + threshold_p) ^ (1/252)) - 1
 # strategy_market_timing(mc_market_sim_returns_decimal[22:44,1], threshold = threshold)
 # mean(mc_market_sim_returns_decimal[22:44,2]) > threshold
 
-### Generate the signal which the trading strategy will use. ----
-signals_alternative <- matrix(NA, nrow = nobs, ncol = sims)
-mc_market_sim_returns_decimal <- zoo(mc_market_sim_returns_decimal,
-                                     seq.Date(Sys.Date(), (Sys.Date()+nobs-1), by=1))
 
-mean_returns <- rollmean(x= mc_market_sim_returns_decimal,
-                         k = window,
-                         align = "right", fill = NA)
+# Process the results/returns of a strategy. Note it relies upon R's leaky encapsulation for window.
+processStrategy <- function(return_matrix, strategy){
+  if(strategy == "baseline"){
+    strategy_sim_returns <- return_matrix
+  } else {  # Assumes binary strategy input
+    strategy_sim_returns <- matrix(0, ncol=ncol(return_matrix), nrow=nrow(return_matrix))
 
-signals_alternative[which(mean_returns >= threshold)] <- 1
-signals_alternative[which(mean_returns < threshold)] <- 0
-signals_alternative[1:window,] <- 1
-buy_index_alternative <- which(signals_alternative == 1)
+    signals <- matrix(NA, nrow = nrow(return_matrix), ncol = ncol(return_matrix))
+    market_sim_returns_zoo <- zoo(return_matrix,
+                                  seq.Date(Sys.Date(), (Sys.Date()+nobs-1), by=1))
+    mean_returns <- rollmean(x= market_sim_returns_zoo,
+                                  k = window,
+                                  align = "right", fill = NA)
 
-### Generate returns based on the alternative trading strategy. ----
-mc_strategy_sim_returns <- matrix(0, ncol=ncol(mc_market_sim_returns_decimal), nrow=nrow(mc_market_sim_returns_decimal))
-mc_market_sim_returns_decimal <- unname(as.matrix(mc_market_sim_returns_decimal)) # remove zoo stuff. This is the 'buy and hold' strategy returns in the Alternative universe.
+    signals[which(mean_returns >= threshold)] <- 1
+    signals[which(mean_returns < threshold)] <- 0
+    signals[1:window,] <- 1  # Auto-invest in burn-in period.
+    buy_index <- which(signals == 1)
+    strategy_sim_returns[buy_index] <- return_matrix[buy_index]
+  }
 
-mc_strategy_sim_returns[buy_index] <- mc_market_sim_returns_decimal[buy_index]
-
-strategy_cumul_values <- apply(unname(mc_strategy_sim_returns),       2, function(x) cumprod(x+1))
-passive_cumul_values <-  apply(unname(mc_market_sim_returns_decimal), 2, function(x) cumprod(x+1))
-
-strategy_cumul_values_long <- melt(strategy_cumul_values)
-strategy_cumul_values_long$strategy <- "active"
-strategy_cumul_values_long$environment <- "alternative"
-
-passive_cumul_values_long <- melt(passive_cumul_values)
-passive_cumul_values_long$strategy <- "passive"
-passive_cumul_values_long$environment <- "alternative"
-#cumul_values_all <- rbind(passive_cumul_values_long, strategy_cumul_values_long)
-
-## Null Environment----
-### Null Environment, Active Strategy----
-signals_null <- matrix(NA, nrow = nobs, ncol = sims)
-null_market_sim_returns_decimal <- zoo(null_market_sim_returns,
-                                     seq.Date(Sys.Date(), (Sys.Date()+nobs-1), by=1))
-
-mean_returns_null <- rollmean(x= null_market_sim_returns,
-                         k = window,
-                         align = "right", fill = NA)
-
-signals_null[which(mean_returns >= threshold)] <- 1
-signals_null[which(mean_returns < threshold)] <- 0
-signals_null[1:window,] <- 1
-buy_index_null <- which(signals_alternative == 1)
-
-### Generate returns based on strategies ----
-null_strategy_sim_returns <- matrix(0, ncol=ncol(null_market_sim_returns_decimal), nrow=nrow(null_market_sim_returns_decimal))
-null_market_sim_returns_decimal <- unname(as.matrix(null_market_sim_returns_decimal)) # remove zoo stuff. This is the 'buy and hold' strategy returns in the Alternative universe.
-
-null_strategy_sim_returns[buy_index_null] <- null_market_sim_returns_decimal[buy_index_null]
-
-strategy_cumul_values_null <- apply(unname(null_strategy_sim_returns),       2, function(x) cumprod(x+1))
-passive_cumul_values_null  <-  apply(unname(null_market_sim_returns_decimal), 2, function(x) cumprod(x+1)) # Baseline strategy
-
-strategy_cumul_values_long_null <- melt(strategy_cumul_values)
-strategy_cumul_values_long_null$strategy <- "active"
-strategy_cumul_values_long_null$environment <- "null"
-
-passive_cumul_values_long_null <- melt(passive_cumul_values_null)
-passive_cumul_values_long_null$strategy <- "baseline"
-passive_cumul_values_long_null$environment <- "null"
+  strategy_cumul_values <- apply(unname(strategy_sim_returns),       2, function(x) cumprod(x+1))
+  results <- melt(strategy_cumul_values)
+  results$strategy <- strategy
+  return(results)
+}
 
 
-cumul_values_all <- rbind(passive_cumul_values_long,
-                          strategy_cumul_values_long,
-                          passive_cumul_values_long_null,
-                          strategy_cumul_values_long_null)
+processSimulations <- function(outcomes_null, outcomes_alternative){
 
+  results_null_baseline         <- processStrategy(outcomes_null, "baseline")
+  results_null_active           <- processStrategy(outcomes_null, "active")
+  results_alternative_baseline  <- processStrategy(outcomes_alternative, "baseline")
+  results_alternative_active    <- processStrategy(outcomes_alternative, "active")
+
+  results_null_baseline$world <- "null"
+  results_null_active$world <- "null"
+  results_alternative_baseline$world <- "alternative"
+  results_alternative_active$world <- "alternative"
+
+  results <- rbind(results_null_baseline,
+                   results_null_active,
+                   results_alternative_baseline,
+                   results_alternative_active)
+  return(results)
+
+}
+
+cumul_values_all <- processSimulations(outcomes_null = market_sim_returns_null,
+                                       outcomes_alternative = market_sim_returns_alternative )
+
+names(cumul_values_all)[names(cumul_values_all) == "Var2"] <- "simulation_id"
+names(cumul_values_all)[names(cumul_values_all) == "Var1"] <- "day"
 
 # Saving down data ----
-save.image(here("blog","dgp_for_strategies","data","dgp_for_strategies.RData"))  # 239MB of data.
-
-
-
-# Thinking about writing a proper function
-# processStrategies(return_matrix, baseline_name, alternative_name)
-# signals_null <- matrix(NA, nrow = nobs, ncol = sims)
-# null_market_sim_returns_decimal <- zoo(null_market_sim_returns,
-#                                        seq.Date(Sys.Date(), (Sys.Date()+nobs-1), by=1))
-#
-# mean_returns_null <- rollmean(x= null_market_sim_returns,
-#                               k = window,
-#                               align = "right", fill = NA)
-#
-# signals_null[which(mean_returns >= threshold)] <- 1
-# signals_null[which(mean_returns < threshold)] <- 0
-# signals_null[1:window,] <- 1
-# buy_index_null <- which(signals_alternative == 1)
-#
-# ### Generate returns based on strategies ----
-# null_strategy_sim_returns <- matrix(0, ncol=ncol(null_market_sim_returns_decimal), nrow=nrow(null_market_sim_returns_decimal))
-# null_market_sim_returns_decimal <- unname(as.matrix(null_market_sim_returns_decimal)) # remove zoo stuff. This is the 'buy and hold' strategy returns in the Alternative universe.
-#
-# null_strategy_sim_returns[buy_index_null] <- null_market_sim_returns_decimal[buy_index_null]
-#
-# strategy_cumul_values_null <- apply(unname(null_strategy_sim_returns),       2, function(x) cumprod(x+1))
-# passive_cumul_values_null  <-  apply(unname(null_market_sim_returns_decimal), 2, function(x) cumprod(x+1)) # Baseline strategy
-#
-# strategy_cumul_values_long_null <- melt(strategy_cumul_values)
-# strategy_cumul_values_long_null$strategy <- "active"
-# strategy_cumul_values_long_null$environment <- "null"
-#
-# passive_cumul_values_long_null <- melt(passive_cumul_values_null)
-# passive_cumul_values_long_null$strategy <- "baseline"
-# passive_cumul_values_long_null$environment <- "null"
+rm(bad_market_returns, bad_market_returns_daily, good_market_returns, good_market_returns_daily)
+save.image(here("blog","dgp_for_strategies","data","dgp_for_strategies.RData"))  # 94MB of data.
