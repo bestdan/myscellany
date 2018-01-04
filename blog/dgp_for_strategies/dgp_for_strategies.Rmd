@@ -51,14 +51,6 @@ I'll compare this to always being invested. In every case we'll run both strateg
 
 Over all our `r comma(sims)` scenarios, this generates the following number of signals to invest or not. 
 
-```{r}
-# temp <- tabyl(as.vector(signals))
-# temp[,1] <- ifelse(temp[,1] == 1, "Buy", "Sell")
-# temp[,2] <- comma(temp[,2])
-# temp[,3] <- percent(temp[,3])
-# kable(temp)
-```
-
 Here are a few example runs comparing the active and passive outcomes. You can see the active strategy having no growth after a period of down/flat days.  
 
 ```{r}
@@ -164,3 +156,9 @@ ggplot(filter(win_ratio, Var1 <= 252 * 5)) +
   xlab("Years") + ylab("Strategy Win Ratio") 
 
 ```
+
+
+## But what if we're wrong?
+This section looks at the strategies in a similar risk/return environment, but _without_ the opportunity for arbitrage. 
+
+```{r}
