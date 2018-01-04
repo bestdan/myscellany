@@ -52,10 +52,11 @@ market_sim_returns_alternative[1, ] <- 0
 ## Null DGP Market Outcomes ------
 ## We want these to be similar in ER etc to the Alternative outcomes, so we'll just do a random
 ## normal sample from the empirical outcomes.
+scalar_factor <- 100000 # Deailing with values <1
 market_sim_returns_null <- matrix(rnorm(n = length(market_sim_returns_alternative),
-                                        mean = mean(market_sim_returns_alternative * 100),
-                                        sd = sd(market_sim_returns_alternative*100)),
-                                  nrow = nrow(market_sim_returns_alternative)) / 100
+                                        mean = mean(market_sim_returns_alternative * scalar_factor),
+                                        sd = sd(market_sim_returns_alternative * scalar_factor)),
+                                  nrow = nrow(market_sim_returns_alternative)) / scalar_factor
 
 
 ##  Alternative Strategy ----
@@ -92,7 +93,7 @@ processStrategy <- function(return_matrix, strategy){
                                   seq.Date(Sys.Date(), (Sys.Date()+nobs-1), by=1))
     mean_returns <- rollmean(x= market_sim_returns_zoo,
                                   k = window,
-                                  align = "right", fill = NA)
+                                  align = "right", fill = NA, by.column =TRUE)
 
     signals[which(mean_returns >= threshold)] <- 1
     signals[which(mean_returns < threshold)] <- 0

@@ -81,13 +81,14 @@ Of course, over shorter periods of time the alpha has less time to accumulate. A
 ```{r}
 interim <- 252 # One year
 year1_values_comp <- cumul_values_all %>% filter(day == interim & world == "alternative")
-year1_values_comp %>% group_by(strategy) %>% summarize(mean(value))
+
+kable(year1_values_comp %>% group_by(strategy) %>% summarize(mean(value)))
 
 ggplot(year1_values_comp) + geom_density(aes(x=value, group = strategy, fill=strategy), alpha = 0.5)
 
 year1_values_comp_wide <- reshape(year1_values_comp, direction = "wide", 
                                   idvar = "simulation_id", timevar = "strategy" )
-str(year1_values_comp_wide)
+
 lims <- c(0.95, 1.08)
 
 ggplot(year1_values_comp_wide) + 
@@ -139,7 +140,7 @@ ggplot(cumul_values_all_wide_alternative %>% filter(day %in% round(seq(252, nobs
 ```{r}
 win_ratio <- cumul_values_all_wide_alternative %>% group_by(day) %>% summarize(win_rate = mean(sign(premium)))
 
-kable(filter(win_ratio, day %in% c(c(0, 30, 90, 120, 180, 240), seq(252, 252 * 5, 252))))s
+kable(filter(win_ratio, day %in% c(c(0, 30, 90, 120, 180, 240), seq(252, 252 * 5, 252))))
 
 ggplot(filter(win_ratio, day <= 252 * 5)) +
   geom_area(aes(x=day, y=win_rate), fill="light blue") + 
@@ -151,7 +152,22 @@ ggplot(filter(win_ratio, day <= 252 * 5)) +
 
 
 ## But what if we're wrong?
-This section looks at the strategies in a similar risk/return environment, but _without_ the opportunity for arbitrage. 
+This section looks at the strategies in a similar risk/return environment, but _without_ the opportunity for arbitrage. Basically the NULL. 
+
+
+This is all just goofy. The random DGP is finding the active strategy is way better? 
 
 ```{r}
+ggplot(cumul_values_all %>% filter(simulation_id %in% c(1:3) & day <= 252 & world == "null")) + 
+  geom_line(aes(x=day, y=value, group=strategy, color = strategy)) + facet_grid(simulation_id ~ .) + 
+  ylab("Value") + xlab("Days") + 
+  scale_x_continuous(breaks = seq(1, 252, 22)) + 
+  geom_vline(xintercept = window, col="dark grey")
+```
+
+
+```{r}
+final_values_comp <- cumul_values_all %>% filter(day == nobs & world == "null")
+ggplot(final_values_comp) + geom_density(aes(x=value, group = strategy, fill=strategy), alpha = 0.5)
+
 ```
