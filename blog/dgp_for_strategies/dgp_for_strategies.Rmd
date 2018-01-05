@@ -1,5 +1,5 @@
 ---
-title: "Front-testing strategies"
+title: "Forward-testing strategies"
 author: "Daniel Egan"
 date: "11/12/2017"
 output: 
@@ -171,7 +171,7 @@ dayToYear <- function(x){
 ggplot(cumul_values_all_wide_alternative %>% filter(day %in% round(seq(252, nobs, 252)))) +
   geom_density_ridges2(aes(x=premium, y=as.factor(day), scale=1), fill=light_blue_trans, color = NA) + 
   geom_vline(xintercept = 0, col="dark grey") + scale_x_continuous(label=percent) + 
-  scale_y_discrete(labels = dayToYear) + 
+  scale_y_discrete(labels = dayToYear) + ggtitle("Active outperformance by years")+
   ylab("Years") + xlab("Active outperformance") + coord_flip()
 
 ```
@@ -181,16 +181,16 @@ ggplot(cumul_values_all_wide_alternative %>% filter(day %in% round(seq(252, nobs
 plot1 <- ggplot(cumul_values_all_wide_alternative %>% filter(day %in% round(seq(252, nobs, 252)))) +
   geom_density_ridges2(aes(x=value.baseline, y=as.factor(day), scale=1), fill=light_blue_trans, color = NA) + 
   geom_vline(xintercept = 1, col="dark grey") + scale_x_continuous(label=percent) + 
-  scale_y_discrete(labels = dayToYear) + 
+  scale_y_discrete(labels = dayToYear) + ggtitle("Passive Final Value") + 
   ylab("Years") + xlab("Baseline raw performance") + coord_flip()
 
 plot2 <- ggplot(cumul_values_all_wide_alternative %>% filter(day %in% round(seq(252, nobs, 252)))) +
   geom_density_ridges2(aes(x=value.active, y=as.factor(day), scale=1), fill=light_blue_trans, color = NA) + 
   geom_vline(xintercept = 1, col="dark grey") + scale_x_continuous(label=percent) + 
-  scale_y_discrete(labels = dayToYear) + 
+  scale_y_discrete(labels = dayToYear) + ggtitle("Active Final Value") + 
   ylab("Years") + xlab("Baseline raw performance") + coord_flip()
 
-grid.arrange(plot1, plot1, ncol=2)
+grid.arrange(plot1, plot2, ncol=2)
 ```
 
 
@@ -206,7 +206,7 @@ ggplot(filter(win_ratio, day <= 252 * 5)) +
   geom_area(aes(x=day, y=win_rate), fill="light blue") + 
   geom_hline(yintercept = 0.5, col="dark grey") + scale_y_continuous(label=percent) + 
   scale_x_continuous(breaks = seq(0, 252 * 5, 252), labels = dayToYear) +
-  xlab("Years") + ylab("Strategy Win Ratio") 
+  xlab("Years") + ylab("Strategy Win Ratio") + ggtitle("Active strategy win ratio")
 
 ```
 
@@ -231,7 +231,9 @@ This is all just goofy. The random DGP is finding the active strategy is way bet
 
 ```{r}
 final_values_comp <- cumul_values_all %>% filter(day == nobs & world == "null")
-ggplot(final_values_comp) + geom_density(aes(x=value, group = strategy, fill=strategy), alpha = 0.5, color=NA)
+ggplot(final_values_comp) + 
+  geom_density(aes(x=value, group = strategy, fill=strategy), alpha = 0.5, color=NA) + 
+  ggtitle("Final value by active vs baseline") + scale_x_continuous(labels = dollar)
 ```
 
 
