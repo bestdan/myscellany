@@ -12,12 +12,14 @@ editor_options:
 ```{r setup, include=FALSE}
 rm(list=ls())
 if(!require(pacman)) install.packages("pacman")
-pacman::p_load(ggplot2, scales, dplyr, knitr, janitor, ggridges, reshape)
+
+pacman::p_load(ggplot2, scales, dplyr, knitr, janitor, ggridges, here, reshape2)
+
 knitr::opts_chunk$set(echo = FALSE, warnings = FALSE, message = FALSE)
 
+load(here::here("blog", "dgp_for_strategies", "data","dgp_for_strategies.RData")) # ~240MB of Data
 
-
-load("dgp_for_strategies.RData")
+light_blue_trans <- adjustcolor("light blue", alpha.f = 0.65)     
 ```
 
 This RMD supports the post "Frontesting"
@@ -39,8 +41,13 @@ This is a pretty simple and straighforward way of modelling a regime switching m
 ```{r}
 nice_term_breaks <- seq(0, nobs, length.out = 11)
 nice_term_breaks_labs <- nice_term_breaks/( 252)
-ggplot(mc_market_sim_returns_df_long %>% filter(scenario <200)) + 
-  geom_line(aes(x=day, y=value, group = scenario), color = adjustcolor("dark green",alpha.f = 0.2 ))  + 
+
+market_sim_returns_alternative_df <- melt(market_sim_returns_alternative)
+market_sim_returns_alternative_cumul <- melt(apply(market_sim_returns_alternative, 2, function(x) cumprod(x+1)))
+
+ggplot(market_sim_returns_alternative_cumul %>% filter(Var2 <200)) + 
+  geom_line(aes(x=Var1, y=value, group = Var2), color = adjustcolor("dark green",alpha.f = 0.2 ))  + 
+
   ylab("Growth of $1") + xlab("Years") + 
   scale_y_continuous(label = dollar) + scale_x_continuous(breaks = nice_term_breaks, labels = nice_term_breaks_labs )
 ```
@@ -84,14 +91,10 @@ Over all our `r comma(sims)` scenarios, this generates the following number of s
 Here are a few example runs comparing the active and passive outcomes. You can see the active strategy having no growth after a period of down/flat days.  
 
 ```{r}
-ggplot(cumul_values_all %>% filter(scenario %in% c(1:3) & day <= 252 & world=="regime")) + 
-  geom_line(aes(x=day, y=value, group=strategy, color = strategy)) + facet_grid(scenario ~ .) + 
-  ylab("Value") + xlab("Days") + 
-  scale_x_continuous(breaks = seq(1, 252, 22)) + 
-  geom_vline(xintercept = window, col="dark grey")
 
-ggplot(cumul_values_all %>% filter(scenario %in% c(1) & day <= 252 & world =="regime")) + 
-  geom_line(aes(x=day, y=value, group=strategy, color = strategy)) + 
+ggplot(cumul_values_all %>% filter(simulation_id %in% c(1:3) & day <= 252 & world == "alternative")) + 
+  geom_line(aes(x=day, y=value, group=strategy, color = strategy)) + facet_grid(simulation_id ~ .) + 
+
   ylab("Value") + xlab("Days") + 
   scale_x_continuous(breaks = seq(1, 252, 22)) + 
   geom_vline(xintercept = window, col="dark grey")
@@ -100,11 +103,11 @@ ggplot(cumul_values_all %>% filter(scenario %in% c(1) & day <= 252 & world =="re
 ## Results
 Over the full ten years, the active strategy outperforms quite nicely, across scenarios. The scatter plot shows that distribution plot is actually being unkind: in every scenario, the market timing strategy performed better. 
 
-```{r cars}
-final_values_comp <- cumul_values_all %>% filter(day == nobs, world=="regime")
+```{r }
 
-ggplot(final_values_comp) + geom_density(aes(x=value, group = strategy, fill=strategy),color=NA, alpha = 0.5) + 
-  scale_x_continuous(label = dollar) 
+final_values_comp <- cumul_values_all %>% filter(day == nobs & world == "alternative")
+
+ggplot(final_values_comp) + geom_density(aes(x=value, group = strategy, fill=strategy), alpha = 0.5)
 
 ```
 
@@ -113,15 +116,18 @@ Of course, over shorter periods of time the alpha has less time to accumulate. A
 
 ```{r}
 interim <- 252 # One year
-year1_values_comp <- cumul_values_all %>% filter(day == interim & world == "regime")
-# year1_values_comp %>% group_by(strategy) %>% summarize(mean(value))
+
+year1_values_comp <- cumul_values_all %>% filter(day == interim & world == "alternative")
+
+kable(year1_values_comp %>% group_by(strategy) %>% summarize(mean(value)))
 
 ggplot(year1_values_comp) + 
   geom_density(aes(x=value, group = strategy, fill=strategy), alpha = 0.5, color=NA) + 
   scale_x_continuous(label = dollar)
 
 year1_values_comp_wide <- reshape(year1_values_comp, direction = "wide", 
-                                  idvar = "scenario", timevar = "strategy" )
+                                  idvar = "simulation_id", timevar = "strategy" )
+
 
 year1_values_comp_wide <- year1_values_comp_wide %>% mutate(premium = value.active - value.passive) 
 year1_values_win_rate <-  prop.table(table(sign(year1_values_comp_wide$premium)))
@@ -133,37 +139,80 @@ The distributions under-estimate the success ratio. This plot shows the ending v
 lims <- c(0.98, 1.05)
 
 ggplot(year1_values_comp_wide) + 
-  geom_point(aes(x=value.passive, y=value.active), color = "blue", alpha = 0.2, color = "blue") + 
+  geom_point(aes(x=value.baseline, y=value.active), color = "blue", alpha = 0.5) + 
   geom_abline(intercept = 0, slope = 1, col="dark grey") + 
   coord_cartesian(xlim=lims, ylim=lims) + 
-  scale_x_continuous(label = dollar) + scale_y_continuous(label = dollar)
+  scale_x_continuous(label = dollar) + scale_y_continuous(label = dollar) +
+  ylab("Value of active strategy") + xlab('Value of baseline strategy')
+
+
+year1_values_comp_wide <- year1_values_comp_wide %>% mutate(premium = value.active - value.baseline) 
 
 ggplot(year1_values_comp_wide) + 
-  geom_density(aes(x=premium), fill = "blue", alpha = 0.5) + 
-  geom_vline(xintercept = 0, col="dark grey") + scale_x_continuous(label = percent) + 
-  xlab("Premium (active - passive)")
+  geom_density(aes(x=premium), fill = light_blue_trans ,color=NA) + 
+  geom_vline(xintercept = 0, col="dark grey") + scale_x_continuous(label = percent)
 ```
 
 We can see the effect of time on the strategy, as in the first year there is still a chance the active strategy doesn't work, but the active strategy increases it's hit ratio and magnitude as time goes on. 
 
 
 ```{r}
-#cumul_values_all_wide  %>% group_by(Var1, Var2) %>%
-cumul_values_all_wide <- reshape(filter(cumul_values_all, world=="regime"), direction = "wide", 
-                                  idvar = c("day", "scenario"), timevar = "strategy" )
-cumul_values_all_wide   <- cumul_values_all_wide %>% mutate(premium = value.active - value.passive) 
 
-toyear <- function(x){
- as.character((as.numeric(x)/252))
+cumul_values_all_wide_alternative <- reshape(filter(cumul_values_all, world == "alternative"), direction = "wide", 
+                                  idvar = c("simulation_id", "day"), timevar = "strategy")
+
+cumul_values_all_wide_alternative   <- cumul_values_all_wide_alternative %>% mutate(premium = value.active - value.baseline) 
+
+dayToYear <- function(x){
+  (as.numeric(x))/252
 }
 
-ggplot(cumul_values_all_wide %>% filter(day %in% round(seq(252, nobs, 252)))) +
-  geom_density_ridges(aes(x=premium, y=as.factor(day), scale=1), fill=adjustcolor("dark blue", alpha.f = 0.6), color=NA) + 
-  geom_vline(xintercept = 0, col="white") + 
-  scale_x_continuous(label=percent) + scale_y_discrete(labels = toyear) + 
-  ylab("Years") + xlab("Active return premium")
+ggplot(cumul_values_all_wide_alternative %>% filter(day %in% round(seq(252, nobs, 252)))) +
+  geom_density_ridges2(aes(x=premium, y=as.factor(day), scale=1), fill=light_blue_trans, color = NA) + 
+  geom_vline(xintercept = 0, col="dark grey") + scale_x_continuous(label=percent) + 
+  scale_y_discrete(labels = dayToYear) + 
+  ylab("Years") + xlab("Activ outperformance") + coord_flip()
 
 ```
+
+
+```{r}
+ggplot(cumul_values_all_wide_alternative %>% filter(day %in% round(seq(252, nobs, 252)))) +
+  geom_density_ridges2(aes(x=value.baseline, y=as.factor(day), scale=1), fill=light_blue_trans, color = NA) + 
+  geom_vline(xintercept = 1, col="dark grey") + scale_x_continuous(label=percent) + 
+  scale_y_discrete(labels = dayToYear) + 
+  ylab("Years") + xlab("Baseline raw performance") + coord_flip()
+```
+
+
+```{r}
+win_ratio <- cumul_values_all_wide_alternative %>% group_by(day) %>% summarize(win_rate = mean(sign(premium)))
+
+kable(filter(win_ratio, day %in% c(c(0, 30, 90, 120, 180, 240), seq(252, 252 * 5, 252))))
+
+ggplot(filter(win_ratio, day <= 252 * 5)) +
+  geom_area(aes(x=day, y=win_rate), fill="light blue") + 
+  geom_hline(yintercept = 0.5, col="dark grey") + scale_y_continuous(label=percent) + 
+  scale_x_continuous(breaks = seq(0, 252 * 5, 252), labels = dayToYear) +
+  xlab("Years") + ylab("Strategy Win Ratio") 
+
+```
+
+
+## But what if we're wrong?
+This section looks at the strategies in a similar risk/return environment, but _without_ the opportunity for arbitrage. Basically the NULL. 
+
+
+This is all just goofy. The random DGP is finding the active strategy is way better? 
+
+```{r}
+ggplot(cumul_values_all %>% filter(simulation_id %in% c(1:3) & day <= 252 & world == "null")) + 
+  geom_line(aes(x=day, y=value, group=strategy, color = strategy)) + facet_grid(simulation_id ~ .) + 
+  ylab("Value") + xlab("Days") + 
+  scale_x_continuous(breaks = seq(1, 252, 22)) + 
+  geom_vline(xintercept = window, col="dark grey")
+```
+
 
 ### How good is the strategy at detecting the regimes
 Compare actual market environments vs perceived signals. Note that this is more a sensitivity analysis style approach. It's trivial to tune the parameters perfectly - we've pre-identified them! 
@@ -187,5 +236,7 @@ How many false-positives does the strategy see? How often does it react to them?
 >>> It's funny, through the course of writing this document up, I could feel myself getting hopeful that I'd beat a market-beating strategy... even though I knew I'd set it up to tell me that!! **Beware confirmation bias**. 
 
 ```{r}
+final_values_comp <- cumul_values_all %>% filter(day == nobs & world == "null")
+ggplot(final_values_comp) + geom_density(aes(x=value, group = strategy, fill=strategy), alpha = 0.5)
 
 ```
