@@ -12,4 +12,5 @@
 postRandomTweet <- function(category=NULL, tweet_db=NULL){
   result <- getRandomTweets(category = category, tweet_db = tweet_db)
   twitteR::tweet(result, bypassCharLimit=TRUE)
+  return(result)
 }
