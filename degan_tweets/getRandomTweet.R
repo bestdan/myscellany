@@ -4,13 +4,14 @@
 #' @param search_text A string to filter the resulting tweets by. \code{NULL} by default.
 #' @param category A category to filter the resulting tweets by.  \code{NULL} by default.
 #' @param tweet_db Optional, \code{NULL} by default. Allows you to pass an in-memory database in.
+#' @importFrom here here 
 #' @export
 #' @examples 
 #' res<- getRandomTweets(search_text="#BeFiFails")
 
 getRandomTweets <- function(n=1, search_text=NULL, category=NULL, tweet_db=NULL){
  if(is.null(tweet_db)){
-   load("degan_tweets/tweet_db.Rda")
+   load(here("~src/myscellany/degan_tweets/tweet_db.Rda"))
  }
   
   if(!is.null(category)){

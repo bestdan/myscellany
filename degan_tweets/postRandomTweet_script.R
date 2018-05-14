@@ -13,3 +13,4 @@ result <- postRandomTweet()
 
 write(paste0(result, ",     ", Sys.time()),
       file="degan_tweets/log/tweet_log.txt",append=TRUE)
+
