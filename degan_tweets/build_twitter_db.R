@@ -60,8 +60,8 @@ addNewTweetToDB(tweet_text = "My thoughts on getting a job doing behavioral scie
 
 addNewTweetToDB(tweet_text = "My thoughts on getting a job doing behavioral science (economics, finance, or design).\n\n
 
-            http://www.dpegan.com/befi_guidance/", 
-            category = "dpegan_blog_posts", ask=FALSE)
+                http://www.dpegan.com/befi_guidance/", 
+                category = "dpegan_blog_posts", ask=FALSE)
 
 addNewTweetToDB(tweet_text = "Simply prohibiting bad client behavior is unlikely to be effective. Here are some alternatives.\n\n
 
@@ -71,11 +71,56 @@ addNewTweetToDB(tweet_text = "Simply prohibiting bad client behavior is unlikely
 addNewTweetToDB(tweet_text=c("Should we change the portfolio, or the investor?\n  http://www.dpegan.com/change_portfolio_or_investor/"),
             category = "dpegan_blog_posts", ask=FALSE)
 
-
-
 addNewTweetToDB(tweet_text = "Goal based investing is great, but always keep an eye on the big picture.\n\n
             http://www.dpegan.com/goal-based-investing-big-picture/", 
             category = "dpegan_blog_posts", ask=FALSE)
+
+addNewTweetToDB(tweet_text = "The Law of Reversed Effort, when saving and investing:\n\n
+                http://www.dpegan.com/the-law-of-reversed-effort/", 
+                category = "dpegan_blog_posts", ask=FALSE)
+
+addNewTweetToDB(tweet_text = "Visualizing the effect of time on risk and return:\n\n
+                http://www.dpegan.com/visualizing-risk-return-and-time/", 
+                category = "dpegan_blog_posts", ask=FALSE)
+
+addNewTweetToDB(tweet_text = "When past performance is, or isn't, predictive of the future?:\n\n
+                http://www.dpegan.com/when-is-past-performance-predictive/", 
+                category = "dpegan_blog_posts", ask=FALSE)
+
+addNewTweetToDB(tweet_text = "When you're investing, a little bit of confidence can be a dangerous thing:\n\n
+                http://www.dpegan.com/a-little-bit-of-confidence-is-a-dangerous-thing/", 
+                category = "dpegan_blog_posts", ask=FALSE)
+
+addNewTweetToDB(tweet_text = "Behavioral finance is for individuals, not markets. \n\n
+                Warning: idealistic and potentially naive.:\n\n
+                http://www.dpegan.com/behavioral-finance-is-for-individuals-not-markets", 
+                category = "dpegan_blog_posts", ask=FALSE)
+
+addNewTweetToDB(tweet_text = "Here's my suggested behavioral design reading list, broken down by area and topic:\n\n
+                http://www.dpegan.com/behavioral-science-reading-list/", 
+                category = "dpegan_blog_posts", ask=FALSE)
+
+addNewTweetToDB(tweet_text = "The skill of managing luck (and algorithms):\n\n
+                http://www.dpegan.com/the-skill-of-managing-luck/", 
+                category = "dpegan_blog_posts", ask=FALSE)
+
+addNewTweetToDB(tweet_text = "Who's designing your brokerage interface, and how do they make money?\n\n
+                http://www.dpegan.com/incentives-and-behavioral-design-brokerage-ui-edition/", 
+                category = "dpegan_blog_posts", ask=FALSE)
+
+addNewTweetToDB(tweet_text = "An investor without a faith is doomed.\n\n
+                http://www.dpegan.com/strategic-faith/", 
+                category = "dpegan_blog_posts", ask=FALSE)
+
+addNewTweetToDB(tweet_text = "Making wetware and software work together:\n\n
+                http://www.dpegan.com/wetware_and_software/", 
+                category = "dpegan_blog_posts", ask=FALSE)
+
+addNewTweetToDB(tweet_text = "What if? Why I read science fiction:\n\n
+                http://www.dpegan.com/why-i-read-science-fiction/", 
+                category = "dpegan_blog_posts", ask=FALSE)
+
+
 
 
 #----- 
