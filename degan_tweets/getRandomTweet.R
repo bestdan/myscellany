@@ -11,7 +11,7 @@
 
 getRandomTweets <- function(n=1, search_text=NULL, category=NULL, tweet_db=NULL){
  if(is.null(tweet_db)){
-   load(here("~src/myscellany/degan_tweets/tweet_db.Rda"))
+   load("src/myscellany/degan_tweets/tweet_db.Rda")
  }
   
   if(!is.null(category)){
