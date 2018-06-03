@@ -1,7 +1,10 @@
-rm(list=ls())
-library(rvest)
-library(dplyr)
-library(ggplot2)
+#' @author Daniel P Egan
+#' @date June 3, 2018
+#' @description Turning the tables into a graph from "https://blog.thinknewfound.com/2018/05/dollar-cost-averaging-improved-by-trend/" 
+
+if(!require(pacman)) install.packages(pacman)
+pacman::p_load(rvest, dplyr, ggplot2, tidyr)
+
 page_url <- "https://blog.thinknewfound.com/2018/05/dollar-cost-averaging-improved-by-trend/"
 ref_page <- page_url %>% read_html() 
 
@@ -94,7 +97,7 @@ for(dname in datalist){
 
 # Collate results into long format
 for(i in 1:length(strategies)){
-
+  
   stat_name <- strategies[i]
   
   temp_results_name <- paste0("temp_results_", stat_name)
@@ -136,7 +139,7 @@ for(i in 1:length(strategies)){
     assign(all_name, rbind(get(all_name),tx))
     rm(tx, all_name)
   }
- rm(list = c(paste0(temp_results_name,"_hr"), paste0(temp_results_name,"_regs")))
+  rm(list = c(paste0(temp_results_name,"_hr"), paste0(temp_results_name,"_regs")))
 }
 
 for(dl in datalist){
@@ -150,7 +153,6 @@ for(dl in datalist){
 results_wide <- do.call(rbind, args = lapply(ls(pattern = "all"), get))
 results_long <- results_wide %>% gather(time, value, -rindex, -stat, -type)
 results_long <- results_long %>% spread(key = type, value = value)
-str(results_long)
 results_long$count <- as.numeric(results_long$count)
 results_long$percent <- as.numeric(results_long$percent)
 results_long$hr <- as.numeric(results_long$hr)
@@ -161,11 +163,13 @@ results_long$stat <- as.factor(results_long$stat)
 results_long <- results_long %>% group_by(stat, time)
 
 
+
 ps_dodge <- 1
-ggplot(results_long) + 
+tablegraph <- ggplot(results_long) + 
   geom_bar(   aes(x=time, y=hr, group=rindex), width = 0.8, stat="identity", alpha = 0.3, position = position_dodge(ps_dodge)) +
   geom_point( aes(x=time, y=percent, group=rindex), alpha = 0.3,  position = position_dodge(ps_dodge* 0.9)) +  # , color=rindex
   geom_line(  aes(x=time, y=percent, group=rindex), alpha = 0.3,  position = position_dodge(ps_dodge* 0.9)) +
   geom_text(  aes(x=time, y=percent, group=rindex, label = significance), color = "orange",position = position_dodge(ps_dodge* 0.9)) +
   geom_hline(yintercept = 0.50, col="dark grey") +
-  facet_grid(. ~ stat)
+  facet_grid(. ~ stat) + ylab("Effect size")
+ggsave(filename = "newfound_table_graph.png", path = "~/Desktop",plot = tablegraph, device = "png", width = 12, height = 9)
