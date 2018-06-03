@@ -7,6 +7,12 @@ addNewTweetToDB(tweet_text = "Data shows that women are better (behaved) investo
             https://www.betterment.com/resources/data-suggests-women-are-better-behaved-investors/", 
             category = "betterment_posts", ask=FALSE)
 
+addNewTweetToDB(tweet_text = "Try to beat the market based on news headlines using this game:\n\n
+                https://www.betterment.com/resources/can-you-time-the-market/", 
+                category = "betterment_posts", ask=FALSE)
+
+
+  
 #----- 
 # befi fails
 
