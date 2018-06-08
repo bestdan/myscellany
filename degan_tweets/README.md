@@ -1,12 +1,5 @@
----
-title: "Setting up a scheduled tweet library using R on EC2"
-output: 
-  html_document: 
-    toc: yes
----
 
-
-### BLUF
+# Bottom Line
 A guide for setting up a scheduled tweet-bot library on AWS EC2, and posting using R and cron jobs. 
 
 Tools used:  
@@ -16,7 +9,7 @@ Tools used:
 - R: for accessing the library and interfacing with Twitter.   
 
 
-### Background
+# Background
 I generally try to write ever-green/non-ephemeral articles. I've also noticed that other writers who try to do this will periodically share older content, which is great. I wanted to be able to do the same. 
  
 So, I used to pay something like $500 a year for [MeetEdgar](www.meetedgar.com). It maintained a categorical library of social media content, and posts random things at pre-apppointed times from different categories. 
@@ -70,7 +63,7 @@ chmod 7503
 ```
 Then I could use `R` packages like [devtools](https://github.com/r-lib/devtools). 
 
-### Getting your twitter api credentials
+# Step 2: Get and save your twitter API credentials
 In order to post scheduled tweets, you need to set up Twitter to allow an API connections. You can read how to do that here. 
 
 Critically, you'll want to store them down securely, and never store or transmit them in plain-text or over an insecure connection. 
@@ -91,39 +84,57 @@ twitter:
     access_token: "##################"
 
 github:
-  username: bestdan
+  username: "bestdan"
   token: "###################"
 ```
 
-# The **R** code
+# Step 3: The `R` code
 Yes, I know you can do this with Python, Ruby or whatever. I know R best and this was the quickest way to get it up and running. Don't hate. 
 
 ### Aside: git/github/version control
-Ok, a brief aside here. 
 
-The way I actually did this was to build everything on my local computer, and then put it on github in the `myscellany` repo you're looking at now. 
+The way I actually did this was to do all the `R` coding on my local computer, and then put it on github in the `myscellany` repo you're looking at now. 
 
 Then, when ssh'd into the EC2 instance, I used git/github to pull down `myscellany`. 
 
+Local R --> Github --> EC2 instance
 
-# Making a library of cotent
+
+## Making a library of cotent
+So, we need to create a library of content! 
+
 I'm going to use an file called `tweet_db.rda` to store my library of tweets. In R, I'll build this library using [build_twitter_db.R](build_twitter_db.R). Here's a snippet:
 
 What's happening here is that the function [addNewTweetToDB](addNewTweetToDB.R) is just filling in a table with the content and saving it down to a file. 
 
-When we
+We'll use that `tweet_db.rda` file on EC2 as the thing we're pulling content from to tweet. 
 
 
-# Scheduling: setting up cron jobs
+
+
+# Step 4: Scheduling: setting up cron jobs
 
 ## Scheduling tweets
 
 - I had some issues editing the cron file, or more specifically _having my edits save_. You need to do this weird thing. 
 
+```bash
+export EDITOR=nano
+sudo nano crontab -e
+```
+
+I can then edit the crontab file:
+
+```crontab
+05 12 * * 1 sudo sh src/myscellany/degan_tweets/postRandomTweet.sh
+05 12 * * 3 sudo sh src/myscellany/degan_tweets/postRandomTweet.sh
+05 12 * * 5 sudo sh src/myscellany/degan_tweets/postRandomTweet.sh
+```
+
 ## Scheduling updates of the library
 How do you get new content into the EC2 instance? In this case I set up a cron job which pulls 
 
-# Troubleshooting
+# Step 5: Troubleshooting
 
 ```bash
 #!/bin/bash
