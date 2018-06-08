@@ -112,11 +112,10 @@ We'll use that `tweet_db.rda` file on EC2 as the thing we're pulling content fro
 
 
 
-# Step 4: Scheduling: setting up cron jobs
+# Step 4: Scheduling
 
-## Scheduling tweets
 
-- I had some issues editing the cron file, or more specifically _having my edits save_. You need to do this weird thing. 
+First, I had some issues editing the cron file, or more specifically _having my edits save_. I had to do this: 
 
 ```bash
 export EDITOR=nano
@@ -130,6 +129,24 @@ I can then edit the crontab file:
 05 12 * * 3 sudo sh src/myscellany/degan_tweets/postRandomTweet.sh
 05 12 * * 5 sudo sh src/myscellany/degan_tweets/postRandomTweet.sh
 ```
+
+## Making bash files to run 
+Those `postRandomTweet.sh` files above are bash script files. They tell the computer what to do. In this case, it just says this:
+ 
+ ```bash
+ #!/bin/bash
+{
+    sudo Rscript src/myscellany/degan_tweets/postRandomTweet_script.R
+} >> src/myscellany/degan_tweets/log/bash_log.txt
+```
+
+This basically just says: 
+```
+Hi! I'm a bash file. 
+Please use R to run this file:
+Please send any responses/messages due to the command to that bash_log.txt file (for troubleshooting).
+```
+
 
 ## Scheduling updates of the library
 How do you get new content into the EC2 instance? In this case I set up a cron job which pulls 
