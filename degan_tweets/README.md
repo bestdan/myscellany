@@ -2,11 +2,11 @@
 # Bottom Line
 A guide for setting up a scheduled tweet-bot library on AWS EC2, and posting using R and cron jobs. 
 
-Tools used:  
+What you'll use:  
 - AWS EC2: for a constantly on computer running the schedule   
 - iTerm3: for ssh'ing into your EC2 instance.  
 - git/github: for maintaining your code and library.   
-- R: for accessing the library and interfacing with Twitter.   
+- R: for accessing the library and interfacing with Twitter. Uses the [twitteR](https://cran.r-project.org/web/packages/twitteR/index.html) package. 
 
 
 # Background
@@ -33,7 +33,7 @@ First, you'll need to install R on the instance, and it's nice to get the update
 I use [iterm3](https://www.iterm2.com/) as my command-line-interface (CLI), so the screenshots will be from there.
 
 ### Logging into your EC2 instance
-You'll need to ssh into your EC2 instance. For me, this is a command like this
+You'll need to ssh into your EC2 instance from iTerm (or your CLI). For me, this is a command like this
 
 ```bash
 ssh -i ~/src/dan_tweets.pem  ec2-user@##.##.##.###
