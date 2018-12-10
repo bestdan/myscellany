@@ -105,7 +105,7 @@ p <- ggplot(VASGX_tidy, aes(x=return_cumul_cat_n, y=return_cumul_cat_mp)) +
   scale_y_continuous(label=percent) + 
   theme_minimal() + theme(legend.position="none") + guides(color=FALSE) + transition_time(yday)
 
-gganimate::animate(p,  renderer = gifski_renderer(loop = F, file = "ytd_performance_hist.gif"), height = 500, width = 800)  
+gganimate::animate(p,  renderer = gifski_renderer(loop = F, file = "ytd_performance_hist.gif"), height = 500, width = 800, nframes = length(unique(VASGX_tidy$yday)), fps = 20)  
 
 
 # Attempt at Tweenr
