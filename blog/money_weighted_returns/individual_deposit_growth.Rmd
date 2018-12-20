@@ -1,0 +1,143 @@
+---
+title: "Individual deposit growth"
+author: "Daniel P. Egan"
+date: "12/20/2018"
+output: 
+  html_document: 
+    theme: cosmo
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+library(scales)
+options("getSymbols.warning4.0"=FALSE, 
+        "getSymbols.yahoo.warning"=FALSE)
+library(quantmod)
+library(zoo)
+library(lubridate)
+library(ggplot2)
+library(reshape)
+library(dplyr)
+library(gridExtra)
+
+thisTicker <- "VTSMX"
+initial_deposit <- 100
+
+
+#' @section Refreshing/re-initalizing the data can take a while, so 
+#' I've quarantined that code here.
+#' You'll need to set this to 'true' the first time you run it.
+if(FALSE){
+  source("data_gen.R")  
+}
+
+load("data.Rdata")
+
+```
+
+
+# Setup
+What's the relationship between time weighted returns and earnings? Should an investor ever expect to have higher TWR than earnings percent?  
+
+Let's use `r thisTicker` to find out. 
+
+Below we show a steady investor, who always deposits $10 every month into the S&P 500. Sometimes they deposit before a fall, sometimes before a rise. On average, things go up though. 
+
+
+```{r}
+ggplot(growth_data, aes(x=rdate, y=returns_cumul)) + 
+  geom_line() + 
+  scale_y_continuous(label=dollar, limits = c(0,13))+ 
+  ylab("Growth of a dollar") + xlab("") + 
+  scale_x_date(date_breaks = "5 year", label = year) + 
+  geom_point(data = growth_data %>% filter(!is.na(deposit_date)), 
+             aes(x=rdate, y=returns_cumul), col=adjustcolor("orange", alpha.f = 0.3))
+
+```
+
+
+Over time, those consistent deposits add up. The growth of the market doesn't hurt either. But there are some points where the portfolio is worth less than it's net deposits. 
+
+```{r}
+ggplot(veMat, aes(x=rdate)) + 
+  geom_line(aes(y = cumulValue), col="blue") + 
+  geom_text(data = filter(veMat, rdate==as.Date("2015-01-02")), 
+                   aes(x=rdate, 
+                       y = cumulValue, 
+                       label = "Portfolio Value"), 
+            col="blue", vjust = 2, hjust = 1.4) + 
+  geom_line(aes(y = netDeposits), col="dark green") +
+  geom_text(data = filter(veMat, rdate==as.Date("2015-01-02")), 
+                   aes(x=rdate, 
+                       y = netDeposits, 
+                       label = "Cumulative\ndeposits"), 
+            col="dark green", vjust = 1, hjust = -0.5) +
+  scale_y_continuous(label=dollar) + 
+  ylab("Value") + xlab("") + 
+  scale_x_date(date_breaks = "5 year", label = year)
+
+```
+
+
+What's happening here? Well, let's look at the growth of each individual deposit. The graph below breaks out each individual deposit to show the specific return it generates. 
+
+They all start at $10, but then grow up and down with market movements. Older deposits are red, and younger deposits are yellow. There are a few cases of yellow (newer) deposits being above older (redder) deposits, but they're few and far between. These yellow-above-red are deposits that occurred just before a market bounce. That's luck, not skill thought. We're just doing monthly deposits. 
+
+```{r}
+
+
+p1 <-
+  ggplot(value_streams_long, 
+       aes(x=rdate, y=value, group=series, col=series)) + 
+  geom_line() + 
+  geom_hline(yintercept = initial_deposit) +
+  theme(legend.position="none") + 
+  scale_color_viridis_d(alpha = 0.3, option = "plasma") + 
+  scale_x_date(date_breaks = "5 years", label=year) + 
+  scale_y_continuous(label= dollar) + 
+  xlab("") +
+  ggtitle("By when invested") +
+  ylab(paste0("Value of initial ", dollar(initial_deposit))) 
+print(p1)
+```
+
+
+This is the same plot, but with all deposits having the same starting point. 
+
+```{r start_aligned}
+p2 <-
+  ggplot(value_streams_dayaligned, aes(x=days, y=value, group=series, col=series)) + 
+  geom_line() + 
+  geom_hline(yintercept = initial_deposit) +
+  theme(legend.position="none") + 
+  scale_color_viridis_d(alpha = 0.3, option = "plasma") + 
+  scale_x_continuous(label= function(x) comma(x/365), 
+                     breaks = seq(0, 365 * 20, 365 )) + 
+  scale_y_continuous(label=dollar) + 
+  ggtitle("By how long invested") +
+  xlab("Years") +
+  ylab(paste0("Value of initial ", dollar(initial_deposit))) 
+print(p2)  
+
+```
+
+
+## The experience
+This graph color-codes deposits by whether or not they ever had a loss, and the size of the loss. 
+
+```{r by_min_return_category}
+
+
+ggplot(value_streams_long, 
+       aes(x=rdate, y=value, group=series, col=min_value_cat)) + 
+  geom_line() + 
+  geom_hline(yintercept = initial_deposit) +
+  theme(legend.position="none") + 
+  scale_color_viridis_d(alpha = 0.3, option = "D") + 
+  scale_x_date(date_breaks = "5 years", label=year) + 
+  scale_y_continuous(label= dollar) + 
+  xlab("") +
+  ggtitle("By when invested") +
+  ylab(paste0("Value of initial ", dollar(initial_deposit))) 
+
+```
