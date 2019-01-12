@@ -8,6 +8,7 @@
 #
 
 library(shiny)
+library(plotly)
 
 # Define UI for application that draws a histogram
 shinyUI(fluidPage(
@@ -42,10 +43,10 @@ shinyUI(fluidPage(
     mainPanel(
       tabsetPanel(
         tabPanel(title = "Distribution",  
-          plotOutput("distPlot")
+                 plotlyOutput("distPlot")
         ), 
         tabPanel(title = "Array",
-          plotOutput("arrayPlot")
+                 plotlyOutput("arrayPlot")
         )
       )
     )

@@ -1,5 +1,6 @@
 #' @title Functions to include
 library(magrittr)
+library(zoo)
 
 simpleRet <- function(x){
   (x/lag(x)) - 1  
@@ -25,14 +26,19 @@ cumulRet <- function(x){
   tail(cumprod(x+1)-1, 1)
 }
 
+# na.fill <- function(x, filler){
+#   x[is.na(x)] <- filler
+# }
+
 generateReturnMatrix <- function(x){
   x %>% 
     as.numeric() %>%
     na.fill(., fill = 0) -> z
   cumulret <-   cumprod(z + 1) 
-  #z <- na.fill(as.numeric(), fill = 0)
-  #cumulret <- cumprod(as.numeric(z) + 1)
-  matHorizonRet <- outer(cumulret, cumulret, "/") - 1
+  julia_assign("cumulret", cumulret)
+  matHorizonRet <- julia_eval("cumulret ./ cumulret'")  
+  
+  #matHorizonRet <- outer(cumulret, cumulret, "/") - 1
   return(matHorizonRet)
 }
 
@@ -85,17 +91,25 @@ autocat <- function(x){
 }
 # autocat(seq(-0.123, 1.2, 0.01))
 
-arrayPlot <- function(tidyframe){
+arrayPlot <- function(tidyframe, pt, st){
   require(ggplot2)
-  tidyframe %>% 
-    ggplot(aes(x=mod_x, y=mod_y, col=value)) + 
+  p <- 
+    tidyframe %>% 
+    ggplot(aes(x=mod_x, 
+               y=mod_y, 
+               col=value, 
+               text = paste0(percent(value)))) + 
     geom_point() + 
     scale_color_gradient2(low = "orange", 
                           mid = "grey", 
                           high = "blue", 
                           midpoint = 0, 
                           labels = percent) + 
-    xlab(paste0("Return difference (", input$primary_ticker, " - ", input$secondary_ticker,")")) +
+    xlab(paste0("Return difference (", 
+                pt, 
+                " - ", 
+                st,
+                ")")) +
     labs(color = "Return size") +
     theme_minimal() + 
     theme(axis.line=element_blank(),axis.text.x=element_blank(),
@@ -107,13 +121,17 @@ arrayPlot <- function(tidyframe){
           panel.grid.major=element_blank(),
           panel.grid.minor=element_blank(),
           plot.background=element_blank())
+  ggplotly(p,  tooltip="text")
 }
 
 
 
-distributionPlot <- function(tidyframe){
-  tidyframe %>% 
-  ggplot(aes(x=return_cat_mp, y=counter, color= value)) + 
+distributionPlot <- function(tidyframe, pt, st){
+  require(plotly)
+  
+  p <- 
+    tidyframe %>% 
+    ggplot(aes(x=return_cat_mp, y=counter, color= value)) + 
     geom_point(size = 1/3) +
     scale_color_gradient2(low = "orange", 
                           mid = "grey", 
@@ -121,7 +139,16 @@ distributionPlot <- function(tidyframe){
                           midpoint = 0, 
                           labels = percent)+
     geom_vline(xintercept = 0) + 
-    xlab(paste0("Return difference (", input$primary_ticker, " - ", input$secondary_ticker,")")) + 
+    xlab(paste0("Return difference (", 
+                pt, 
+                " - ", 
+                st,
+                ")")) + 
     scale_x_continuous(label = percent) + 
-    ylab("Frequency") + theme_minimal()  
+    ylab("Frequency") + theme_minimal() 
+  
+  ggplotly(p)
 }
+
+
+

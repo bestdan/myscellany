@@ -4,32 +4,43 @@
 #' - convert output to labeled plotly
 #' - modularize sectional code
 #' - emphasize zero in icon array
+#' - rolling period plot
+#' - use live vs historical comparison
+#' - risk versus return of each other
+#' - comovement
 
 library(shiny)
 library(data.table)
-library(betterutils)
 library(magrittr)
 library(dplyr)
 library(ggplot2)
 library(scales)
-source("includes.R")
-source("comparing_returns_for_clients.R")
+library(plotly)
+library(JuliaCall)
+library(quantmod)
 
+julia_setup(JULIA_HOME = "/Applications/Julia-1.0.app/Contents/Resources/julia/bin/")
+
+source("includes.R")
 
 shinyServer(function(input, output) {
   
   updateData <- reactive({
     withProgress(message = 'Fetching data', style = 'notification', detail = "part 0", value = 0, {
-      incProgress(amount = 0.1, message = "Fetching data")
       #  input <- list()
       #  input$primary_ticker <- "VASGX"
-      #  input$secondary_ticker <- "VFINX"
+      #  input$secondary_ticker <- "VFINX" 
+      #  browser()
+      incProgress(amount = 0.3, message = "Fetching primary data")
       primary_ticker_returns <- getReturns(sym = input$primary_ticker)
+      incProgress(amount = 0.3, message = "Fetching secondary data")
       secondary_ticker_returns <- getReturns(sym = input$secondary_ticker)
+      #  save(primary_ticker_returns, 
+      #       secondary_ticker_returns, file = "temp_cache.Rdata")
+      #load(file = "temp_cache.Rdata")
       incProgress(amount = 0.3, message = "Fetched data, processing")
       return_data <- merge(primary_ticker_returns, secondary_ticker_returns, join = 'inner')
       names(return_data) <- c(input$primary_ticker, input$secondary_ticker)
-      
       incProgress(amount = 0.3, message = "Generating return matrices")
       primary_return_matrix <- generateReturnMatrix(return_data[, input$primary_ticker])
       secondary_return_matrix <- generateReturnMatrix(return_data[, input$secondary_ticker])
@@ -53,9 +64,9 @@ shinyServer(function(input, output) {
       period_returns <- data.frame(primary = extractKthDiagonal(return_matrices$primary_return_matrix, return_period), 
                                    secondary =  extractKthDiagonal(return_matrices$secondary_return_matrix, return_period))
       temp <- index(return_matrices$return_data)
-      length(temp) - nrow(period_returns)
       
       period_returns$date <- as.Date(temp[1:(length(temp) - (return_period - 1))])
+      
       incProgress(0.3, message = "Cleaning, reshaping")
       period_returns$delta = period_returns$primary - period_returns$secondary
       
@@ -66,7 +77,7 @@ shinyServer(function(input, output) {
   })
   
   
-  output$distPlot <- renderPlot({
+  output$distPlot <- renderPlotly({
     withProgress(message = 'Plotting distribution (and world dominance)', style = 'notification', detail = "part 0", value = 0, {
       # generate bins based on input$bins from ui.R
       incProgress(amount = 0.3, message = "Fetching data")
@@ -91,11 +102,13 @@ shinyServer(function(input, output) {
       incProgress(amount = 0.3, message = "Plotting")
       
       returns_diff_long_delta %>%
-        distributionPlot()
+        distributionPlot(., 
+                         pt = input$primary_ticker, 
+                         st = input$secondary_ticker)
     })
   })
   
-  output$arrayPlot <- renderPlot({
+  output$arrayPlot <- renderPlotly({
     withProgress(message = 'Plotting array', style = 'notification', detail = "part 0", value = 0, {
       incProgress(amount = 0.3, message = "Fetching data")
       period_returns_long <- apply_period()
@@ -118,7 +131,9 @@ shinyServer(function(input, output) {
                mod_y = floor(modulo), 
                mod_x = round((modulo - mod_y) * square_size,0)
         ) %>%
-        arrayPlot()
+        arrayPlot(., 
+                  pt = input$primary_ticker, 
+                  st = input$secondary_ticker)
     })
   })    
   
