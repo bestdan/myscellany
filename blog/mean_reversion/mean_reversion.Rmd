@@ -1,0 +1,62 @@
+---
+title: "Regression vs Reversion to the mean"
+author: "Daniel Egan"
+date: "1/22/2019"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+pacman::p_load(dplyr, magrittr, emo, tidyr)
+```
+
+## Reversion to the mean: one of the funkiest patters
+Definitions: 
+- Regression to the mean
+- Reversion to the mean
+ - after particularly low/high values, the conditional expectation shifts in the opposite direction
+- Diffusion to the mean
+
+```{r}
+
+error_matrix <- data.frame(actual_mean_reversion_yes = c("True Positive", "False Postive"), 
+                           actual_mean_reversion_no = c("False Negative", "True Negative"), 
+                           row.names = c("perceived_mean_reversion_yes", 
+                                         "perceived_mean_reversion_no"))
+
+error_matrix <- data.frame(actual_mean_reversion_yes = c(paste0("True Positive/n", emo::ji("check")), "False Postive"), 
+                           actual_mean_reversion_no = c("False Negative", "True Negative"), 
+                           row.names = c("perceived_mean_reversion_yes", 
+                                         "perceived_mean_reversion_no"))
+kable(error_matrix)
+set.seed(8675309)
+dgp_mean <- 10
+dgp_sd <- 20
+nobs <- 2000
+random_data <- rnorm(n = nobs, 
+                     mean = dgp_mean, 
+                     sd = dgp_sd)
+
+```
+
+## Data snooping
+
+The first case of the illusion of regression to the mean is what I'll call 'data snooping'. 
+
+Say you have a set of data, and you find the overall mean. Then you cut the data into (lets say) tercile runs where it's above the mean. 
+
+The runs after the 'high
+
+What's going on here? You're including all the data in your estimate of the mean! 
+
+
+### A more nuanced case: will returns be lower than they were recently? 
+
+```{r cars}
+summary(cars)
+```
+
+## 
+
