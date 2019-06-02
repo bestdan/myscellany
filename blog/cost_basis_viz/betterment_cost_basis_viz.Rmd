@@ -1,0 +1,187 @@
+---
+title: "Cost Basis Visualizations"
+author: "Daniel Egan"
+date: "3/17/2019"
+output:
+  html_document: 
+    theme: cosmo
+  html_notebook:
+    highlight: textmate
+    theme: cerulean
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, echo = FALSE, 
+                      fig.width = 14, fig.height = 6)
+library(data.table)
+library(dplyr)
+library(ggplot2)
+library(scales)
+library(assertthat)
+library(gridExtra)
+
+raw_data_path <- "~/Downloads/costbasis_2019_asof_2019-06-02_15_11_13.csv"
+raw_data <- as.data.table(read.csv(file = raw_data_path, stringsAsFactors = FALSE))
+table(raw_data$X.UnrealizedGain.Loss)
+clean_data <- raw_data
+clean_data[, gain_loss_dollar := as.numeric(gsub(",", "", X.UnrealizedGain.Loss))]
+clean_data[, gain_loss_dollar_norm := gain_loss_dollar/median(gain_loss_dollar)]
+clean_data[, gain_loss_percent := as.numeric(gsub(",", "", X.UnrealizedGain.Loss.1))/100]
+clean_data[, purchase_date := as.Date(PurchaseDate, format = "%m/%d/%Y")]
+clean_data[, tenure := Sys.Date() -  purchase_date]
+asset_metadata <- data.table(Symbol = unique(clean_data$Symbol))
+
+bonds <- c("SHV", "NEAR", "SHY", "VTIP","AGG", "FLOT", "NYF", "MUB", "LQD", "BNDX", "EMB", "EMHY", "HYG", "VWOB", "IEI", "VCIT", "MBB")
+stocks <- c("VTI", "VBR", "VTV", "IWS", "IWN", "SCHF", "VEA", "EFA", "VWO", "EEM", "VYM", "SCHC", "SCHV", "SCHB", "VOE", "IEMG", "IVE")
+
+asset_metadata[, asset_class := ifelse(Symbol %in% stocks, "Stock", NA)]
+asset_metadata[, asset_class := ifelse(Symbol %in% bonds, "Bond", asset_class)]
+
+# asset_metadata %>% 
+#   group_by(isStock, isBond) %>%
+#   tally()
+# Assert that no assets haven't been classified as a stock or a bond.
+assert_that(nrow(asset_metadata[ asset_class != "Stock" & asset_class != "Bond",]) ==0)
+clean_data <- 
+  merge(clean_data, asset_metadata, by = "Symbol")
+
+```
+
+
+## What does the data look like? {.tabset}
+
+### CDFs
+As we can see below, I have some crazy outliers in the dollar gains. These are actually external positions I transfered into Betterment, that I had for many years. 
+The percent returns also have some huge outliers. 
+```{r}
+genCDF <- function(x, var){
+  x %>% 
+  pull(!!var) %>%
+  quantile(probs = seq(0.01, 0.99, 0.01)) %>%
+  broom::tidy() %>%
+  mutate(percentile = as.numeric(gsub("%", "", names))/100) %>%
+  ungroup()
+}
+
+p1 <- 
+  genCDF(clean_data, "gain_loss_dollar_norm") %>%
+  ggplot(aes(x = percentile, 
+             y = x)) + 
+  geom_point() + 
+  geom_line() + 
+  scale_y_continuous(label = dollar) + 
+  scale_x_continuous(label = percent) + 
+  labs(title = "CDF of Dollar unrealized gains/losses", 
+       subtitle = "Normalized to median value",
+       x = "Percentile", 
+       y = "Dollar gain/loss  (normalized)") + 
+  geom_hline(yintercept = 0)
+
+
+p2 <- 
+  genCDF(clean_data, "gain_loss_percent") %>%
+  ggplot(aes(x = percentile, 
+             y = x)) + 
+  geom_point() + 
+  geom_line() + 
+  scale_y_continuous(label = percent) + 
+  scale_x_continuous(label = percent) + 
+  labs(title = "CDF of Percent unrealized gains/losses", 
+       x = "Percentile", 
+       y = "Percent gain/loss") + 
+  geom_hline(yintercept = 0)
+
+
+grid.arrange(p1, p2, ncol = 2)
+```
+
+## Dollar versus percent gains
+To what degree are the dollar gains due to huge returns? Generally, they're not! I have some very high returns that just didn't have a lot of money put towards them. And conversely, I have some high dollar returns that aren't remarkable from a percent return point of view. In order to have crazy high dollar returns, you need to both have high time-weighted returns, **and** put in a lot of money. 
+
+Luck! 
+
+```{r}
+clean_data %>% 
+  ggplot(aes(x = gain_loss_dollar_norm, 
+             y = gain_loss_percent, 
+             group = Symbol, 
+             col = Symbol)) + 
+  geom_point(alpha = 0.3) + 
+  scale_x_continuous(label = dollar) + 
+  scale_y_continuous(label = percent) + 
+  labs(x = "Dollar Gain/Loss normalized to median", 
+       y = "Percent gain/loss") + 
+  facet_grid(. ~ asset_class) + 
+  geom_hline(yintercept = 0) + 
+  geom_vline(xintercept = 0) 
+```
+  
+Unsurprisingly, the very high returns came from investments I've held a reasonably long time - about 7 years. 
+
+```{r}
+clean_data %>% 
+  ggplot(aes(x = as.numeric(tenure)/365, 
+             y = gain_loss_percent, 
+             group = Symbol, 
+             col = Symbol)) + 
+  geom_point(alpha = 0.3) + 
+  scale_y_continuous(label = percent) + 
+  labs(title = "Percent capital gain/loss by holding period",
+       x = "Tenure (holding in years)", 
+       y = "Percent gain/loss") + 
+  facet_grid(rows = vars(asset_class)) + 
+  geom_hline(yintercept = 0) 
+```
+
+## Cost basis over time
+Here's a really neat one: why is there that big empty period in 2014/2016? Well, partly it's that I was buying bonds in there. Another is that Tax Loss Harvesting (like in early 2016) will reset your previous cost basis! 
+
+It's neat to see how bonds are so steady, while stocks are so variable in the short run. 
+```{r}
+clean_data %>% 
+  ggplot(aes(x = purchase_date, 
+             y = gain_loss_percent, 
+             col = Symbol)) + 
+  geom_point(alpha = 0.3) + 
+  scale_y_continuous(label = percent) + 
+  labs(x = "Purchase date", 
+       y = "Percent gain/loss") + 
+  facet_grid(rows = vars(asset_class)) + 
+  geom_hline(yintercept = 0) 
+```
+
+## Distribution of range of returns. 
+- Yup, generally stocks have a wider range of outcomes. 
+- Remember, these are price changes only - not total returns! Bonds would have higher looking returns if we included dividends. We're just looking at changes in price here. I'm actually suprised how many of them have capital gains built in. 
+- VYM is the stock I've held for the longest, only one lot (no range). 
+- BNDX is the only bond fund to have a higher capital change than a stock. 🤔
+- I apparently have some SCHB and VBR at a significant loss, down about 20%. I had not idea. 🤷
+♂. I wonder why it hasn't been TLH'd yet. 
+```{r}
+return_summary1 <- 
+  clean_data %>% 
+  group_by(Symbol) %>%
+  summarize(min_capital_gain = min(gain_loss_percent), 
+            median_capital_gain = median(gain_loss_percent),
+            max_capital_gain = max(gain_loss_percent))
+
+return_summary1_long <- 
+  return_summary1 %>%
+  tidyr::pivot_longer(cols = contains("_capital_gain")) %>%
+  merge(., asset_metadata, by = "Symbol")
+
+return_summary1_long  %>%
+  mutate(Symbol = factor(Symbol, levels = return_summary1$Symbol[order(return_summary1$max_capital_gain)])) %>%
+  ggplot(aes(x = value, 
+             y = Symbol, 
+             shape = name,
+             group = Symbol, 
+             col = asset_class)) + 
+  geom_point(size = 3) + 
+  scale_shape_manual(name = "range", values=c(62, 19, 60)) + 
+  scale_x_continuous(label = percent) + 
+  labs(x = "Range of returns") + 
+  geom_vline(xintercept = 0, col = "dark grey") 
+```
