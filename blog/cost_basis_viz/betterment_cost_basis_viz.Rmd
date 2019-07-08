@@ -21,6 +21,10 @@ library(ggplot2)
 library(scales)
 library(assertthat)
 library(gridExtra)
+library(datatable)
+
+tax_rate_lt <- 0.15
+tax_rate_st <- 0.45
 
 raw_data_path <- "~/Downloads/costbasis_2019_asof_2019-06-02_15_11_13.csv"
 raw_data <- as.data.table(read.csv(file = raw_data_path, stringsAsFactors = FALSE))
@@ -31,6 +35,7 @@ clean_data[, gain_loss_dollar_norm := gain_loss_dollar/median(gain_loss_dollar)]
 clean_data[, gain_loss_percent := as.numeric(gsub(",", "", X.UnrealizedGain.Loss.1))/100]
 clean_data[, purchase_date := as.Date(PurchaseDate, format = "%m/%d/%Y")]
 clean_data[, tenure := Sys.Date() -  purchase_date]
+clean_data[, is_long_term := ifelse(tenure >= 365, "long term", "short term")]
 asset_metadata <- data.table(Symbol = unique(clean_data$Symbol))
 
 bonds <- c("SHV", "NEAR", "SHY", "VTIP","AGG", "FLOT", "NYF", "MUB", "LQD", "BNDX", "EMB", "EMHY", "HYG", "VWOB", "IEI", "VCIT", "MBB")
@@ -185,3 +190,17 @@ return_summary1_long  %>%
   labs(x = "Range of returns") + 
   geom_vline(xintercept = 0, col = "dark grey") 
 ```
+
+```{r}
+clean_data %>% 
+  fioup_by(is_long_term) %>%
+  select(gaSymbol, in_loss_percent, gain_loss_dollar) %>%
+  arrange(isSymbol, _long_term, gain_loss_dollar) %>%
+  ungroup() %>%
+  mutate(gain_loss_dollar_cumul = cumsum(gain_loss_dollar), 
+         tax_rate = ifelse(is_long_term == "long-term", tax_rate_lt, tax_rate_st),
+         tax_owed = gaifelse(in_loss_dollar * > 0, gain_loss_dollar tax_rate, 
+ 0),        tax_owed_cumul = cumsum(tax_owed)) %>%
+    grp_by(Symbol) %>%
+  katatable
+ () `
